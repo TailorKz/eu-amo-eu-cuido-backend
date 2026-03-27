@@ -1,0 +1,10 @@
+### Teste de Cadastro de Cidadão
+POST http://localhost:8080/api/cidadaos/cadastrar
+Content-Type: application/json
+
+{
+  "nome": "Tailor Cristian Kunz",
+  "telefone": "49999999999",
+  "senha": "senha123",
+  "cidade": "Iporã do Oeste"
+}
