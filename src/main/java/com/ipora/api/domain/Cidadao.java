@@ -4,14 +4,16 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 
-@Data // O Lombok gera todos os Getters e Setters automaticamente
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity // Avisa ao Spring que isso vai virar uma tabela no banco
-@Table(name = "tb_cidadao")
+@Entity
+// NOVA REGRA: O mesmo telefone não pode se repetir NA MESMA CIDADE
+@Table(name = "tb_cidadao", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"telefone", "cidade"})
+})
 public class Cidadao {
 
     @Id
@@ -20,8 +22,8 @@ public class Cidadao {
 
     private String nome;
 
-    @Column(unique = true, nullable = false)
-    private String telefone; // Será usado para o login
+    @Column(nullable = false)
+    private String telefone;
 
     private String senha;
 
