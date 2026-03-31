@@ -44,13 +44,13 @@ public class CidadaoController {
         return ResponseEntity.ok(repository.findAll());
     }
 
-    // 🔴 Rota para o Painel Web (Super Admin) - Promover/Alterar o cargo de um usuário
+    //  Rota para o Painel Web (Super Admin) - Promover/Alterar o cargo de um usuário
     @PutMapping("/{id}/perfil")
     public ResponseEntity<Cidadao> atualizarPerfil(
             @PathVariable Long id,
             @RequestBody Cidadao dadosAtualizados) {
 
-        // 🔴 CORRIGIDO AQUI: Usando apenas "repository"
+        // Usando apenas "repository"
         var cidadaoOpt = repository.findById(id);
 
         if(cidadaoOpt.isPresent()){
@@ -59,7 +59,7 @@ public class CidadaoController {
             cidadao.setPerfil(dadosAtualizados.getPerfil());
             cidadao.setSetorAtuacao(dadosAtualizados.getSetorAtuacao());
 
-            // 🔴 CORRIGIDO AQUI: Usando apenas "repository"
+            // Usando apenas "repository"
             return ResponseEntity.ok(repository.save(cidadao));
         }
         return ResponseEntity.notFound().build();

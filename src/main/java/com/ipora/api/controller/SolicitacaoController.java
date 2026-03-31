@@ -27,21 +27,21 @@ public class SolicitacaoController {
     private CidadaoRepository cidadaoRepository;
 
     // Rota para Abrir um novo Chamado
-    // 🔴 NOVA Rota para Criar Solicitação (Agora recebendo arquivo pesado!)
+    //  NOVA Rota para Criar Solicitação (Agora recebendo arquivo pesado!)
     @PostMapping(value = "/nova/{cidadaoId}", consumes = {"multipart/form-data"})
     public ResponseEntity<Solicitacao> criarSolicitacao(
             @PathVariable Long cidadaoId,
             @RequestParam("categoria") String categoria,
             @RequestParam("localizacao") String localizacao,
             @RequestParam(value = "observacao", required = false) String observacao,
-            @RequestParam("imagem") MultipartFile imagem) { // 🔴 AQUI ELE RECEBE A FOTO REAL
+            @RequestParam("imagem") MultipartFile imagem) { //FOTO REAL
 
         try {
-            // 1. Define onde a imagem vai ser salva no seu PC (Disco C)
+            // 1. Define onde a imagem vai ser salva no PC (Disco C)
             String pastaDestino = "C:/ipora_imagens/";
             Path caminhoPasta = Paths.get(pastaDestino);
 
-            // Se a pasta não existir no seu PC, o Java cria ela na hora!
+            // Se a pasta não existir no PC, o Java cria na hora
             if (!Files.exists(caminhoPasta)) {
                 Files.createDirectories(caminhoPasta);
             }
@@ -59,10 +59,10 @@ public class SolicitacaoController {
             novaSolicitacao.setLocalizacao(localizacao);
             novaSolicitacao.setObservacao(observacao);
             novaSolicitacao.setStatus("PENDENTE");
-            // Salva apenas o caminho de texto no banco!
+            // Salva apenas o caminho de texto no banco
             novaSolicitacao.setUrlImagem("file:///" + pastaDestino + nomeArquivo);
 
-            // Associa o cidadão ao chamado (Assumindo que você tem o cidadaoRepository)
+            // Associa o cidadão ao chamado
             var cidadaoOpt = cidadaoRepository.findById(cidadaoId);
             if(cidadaoOpt.isPresent()){
                 novaSolicitacao.setCidadao(cidadaoOpt.get());
@@ -80,7 +80,7 @@ public class SolicitacaoController {
     @GetMapping("/cidadao/{cidadaoId}")
     public ResponseEntity<List<Solicitacao>> listarPorCidadao(@PathVariable Long cidadaoId) {
 
-        // Puxa da base de dados todos os reportos daquele ID, do mais recente para o mais antigo
+        // Puxa da base de dados todos os reportos do ID, do mais recente para o mais antigo
         List<Solicitacao> meusReportos = solicitacaoRepository.findByCidadaoIdOrderByDataCriacaoDesc(cidadaoId);
 
         return ResponseEntity.ok(meusReportos);

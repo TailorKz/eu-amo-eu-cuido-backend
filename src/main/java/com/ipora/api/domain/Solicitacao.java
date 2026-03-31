@@ -37,6 +37,6 @@ public class Solicitacao {
     private Cidadao cidadao;
 
     @Column(columnDefinition = "TEXT")
-    private String resposta; // 🔴 NOVA COLUNA (O @Data já cria o get/set dela!)
+    private String resposta;
 
 }
