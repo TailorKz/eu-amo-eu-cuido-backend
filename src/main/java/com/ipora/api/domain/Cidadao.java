@@ -27,6 +27,15 @@ public class Cidadao {
 
     private String senha;
 
+//  NOVAS COLUNAS PARA O SISTEMA WEB
+
+    // Define o poder do usuário: "CIDADAO", "FUNCIONARIO", "GESTOR_SETOR", "SUPER_ADMIN"
+    private String perfil = "CIDADAO";
+
+    // Se for um Gestor ou Funcionário, diz de qual setor ele é (ex: "Infraestrutura").
+    // Para Cidadão e Super Admin, isso ficará vazio (null).
+    private String setorAtuacao;
+
     private String cidade;
 
     private LocalDateTime dataCadastro = LocalDateTime.now();

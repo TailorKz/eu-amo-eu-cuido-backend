@@ -7,4 +7,6 @@ import java.util.List;
 public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> {
     // Busca todas as solicitações de um cidadão específico
     List<Solicitacao> findByCidadaoIdOrderByDataCriacaoDesc(Long cidadaoId);
+    // Puxa as solicitações de uma categoria específica, da mais nova para a mais antiga
+    List<Solicitacao> findByCategoriaOrderByDataCriacaoDesc(String categoria);
 }
