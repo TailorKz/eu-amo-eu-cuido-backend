@@ -39,4 +39,6 @@ public class Cidadao {
     private String cidade;
 
     private LocalDateTime dataCadastro = LocalDateTime.now();
+    // Campo para guardar o código gerado temporariamente
+    private String codigoVerificacao;
 }

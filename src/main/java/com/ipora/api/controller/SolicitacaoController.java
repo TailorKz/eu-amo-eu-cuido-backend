@@ -27,7 +27,7 @@ public class SolicitacaoController {
     private CidadaoRepository cidadaoRepository;
 
     // Rota para Abrir um novo Chamado
-    //  NOVA Rota para Criar Solicitação (Agora recebendo arquivo pesado!)
+    //  NOVA Rota para Criar Solicitação (Agora recebendo arquivo pesado)
     @PostMapping(value = "/nova/{cidadaoId}", consumes = {"multipart/form-data"})
     public ResponseEntity<Solicitacao> criarSolicitacao(
             @PathVariable Long cidadaoId,

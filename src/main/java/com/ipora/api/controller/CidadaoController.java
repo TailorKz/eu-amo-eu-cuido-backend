@@ -64,4 +64,87 @@ public class CidadaoController {
         }
         return ResponseEntity.notFound().build();
     }
+    // ==========================================
+    //  ROTAS DE SEGURANÇA (PERFIL)
+    // ==========================================
+
+    // 1. GERA CÓDIGO E ENVIA WHATSAPP
+    @PostMapping("/{id}/solicitar-codigo")
+    public ResponseEntity<Void> solicitarCodigoVerificacao(
+            @PathVariable Long id,
+            @RequestParam String tipo, // "SENHA" ou "NUMERO"
+            @RequestParam(required = false) String novoNumero) {
+
+        var cidadaoOpt = repository.findById(id);
+        if(cidadaoOpt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Cidadao cidadao = cidadaoOpt.get();
+
+        // Gera um código de 4 dígitos aleatório (ex: 4092)
+        String codigoGerado = String.format("%04d", new java.util.Random().nextInt(10000));
+        cidadao.setCodigoVerificacao(codigoGerado);
+        repository.save(cidadao);
+
+        // AQUI ENTRARÁ O CÓDIGO DO TWILIO NO FUTURO
+        String numeroDestino = tipo.equals("NUMERO") ? novoNumero : cidadao.getTelefone();
+        System.out.println("Enviando WhatsApp para " + numeroDestino + " - Código: " + codigoGerado);
+
+        return ResponseEntity.ok().build();
+    }
+
+    // 2. ALTERAR A SENHA (Recebe o código + nova senha)
+    @PutMapping("/{id}/alterar-senha")
+    public ResponseEntity<String> alterarSenha(
+            @PathVariable Long id,
+            @RequestParam String codigo,
+            @RequestParam String novaSenha) {
+
+        var cidadaoOpt = repository.findById(id);
+        if(cidadaoOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Cidadao cidadao = cidadaoOpt.get();
+
+        if (cidadao.getCodigoVerificacao() != null && cidadao.getCodigoVerificacao().equals(codigo)) {
+            cidadao.setSenha(novaSenha);
+            cidadao.setCodigoVerificacao(null); // Limpa o código depois de usar
+            repository.save(cidadao);
+            return ResponseEntity.ok("Senha alterada com sucesso.");
+        }
+
+        return ResponseEntity.badRequest().body("Código inválido.");
+    }
+
+    // 3. VERIFICAR A SENHA ATUAL (Antes de deixar trocar o número)
+    @PostMapping("/{id}/verificar-senha")
+    public ResponseEntity<Boolean> verificarSenhaAtual(
+            @PathVariable Long id,
+            @RequestBody String senhaDigitada) {
+
+        var cidadaoOpt = repository.findById(id);
+        if(cidadaoOpt.isPresent() && cidadaoOpt.get().getSenha().equals(senhaDigitada)) {
+            return ResponseEntity.ok(true);
+        }
+        return ResponseEntity.status(401).body(false);
+    }
+
+    // 4. ALTERAR O NÚMERO (Recebe o código + o novo número)
+    @PutMapping("/{id}/alterar-numero")
+    public ResponseEntity<Cidadao> alterarNumero(
+            @PathVariable Long id,
+            @RequestParam String codigo,
+            @RequestParam String novoNumero) {
+
+        var cidadaoOpt = repository.findById(id);
+        if(cidadaoOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Cidadao cidadao = cidadaoOpt.get();
+
+        if (cidadao.getCodigoVerificacao() != null && cidadao.getCodigoVerificacao().equals(codigo)) {
+            cidadao.setTelefone(novoNumero);
+            cidadao.setCodigoVerificacao(null);
+
+            // Devolve o cidadão atualizado para o Celular salvar no useAuthStore
+            return ResponseEntity.ok(repository.save(cidadao));
+        }
+
+        return ResponseEntity.badRequest().build();
+    }
 }
