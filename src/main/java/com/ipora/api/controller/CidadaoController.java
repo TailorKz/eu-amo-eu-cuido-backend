@@ -147,4 +147,39 @@ public class CidadaoController {
 
         return ResponseEntity.badRequest().build();
     }
+
+    //  EXCLUIR CONTA DEFINITIVAMENTE (Exige o código validado)
+    @DeleteMapping("/{id}/excluir-conta")
+    public ResponseEntity<Void> excluirConta(
+            @PathVariable Long id,
+            @RequestParam String codigo) {
+
+        var cidadaoOpt = repository.findById(id);
+        if(cidadaoOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Cidadao cidadao = cidadaoOpt.get();
+
+        // Verifica se o código bate antes de apagar a vida da pessoa!
+        if (cidadao.getCodigoVerificacao() != null && cidadao.getCodigoVerificacao().equals(codigo)) {
+            repository.delete(cidadao);
+            return ResponseEntity.noContent().build();
+        }
+
+        return ResponseEntity.badRequest().build();
+    }
+
+    // Rota para o telemóvel atualizar o Token sempre que abrir o app
+    @PutMapping("/{id}/push-token")
+    public ResponseEntity<Void> salvarPushToken(
+            @PathVariable Long id,
+            @RequestBody String token) {
+
+        var cidadaoOpt = repository.findById(id);
+        if(cidadaoOpt.isPresent()) {
+            Cidadao cidadao = cidadaoOpt.get();
+            cidadao.setPushToken(token);
+            repository.save(cidadao);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
 }
