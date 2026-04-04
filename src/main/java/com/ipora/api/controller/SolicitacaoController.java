@@ -1,20 +1,19 @@
 package com.ipora.api.controller;
 
-import com.ipora.api.domain.Cidadao;
 import com.ipora.api.domain.Solicitacao;
 import com.ipora.api.repository.CidadaoRepository;
 import com.ipora.api.repository.SolicitacaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.UUID;
+// REMOVEMOS o import conflitante do RequestBody da Amazon aqui!
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/solicitacoes")
@@ -26,50 +25,52 @@ public class SolicitacaoController {
     @Autowired
     private CidadaoRepository cidadaoRepository;
 
-    // Rota para Abrir um novo Chamado
-    //  NOVA Rota para Criar Solicitação (Agora recebendo arquivo pesado)
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
+
+    @Value("${aws.region}")
+    private String region;
+
     @PostMapping(value = "/nova/{cidadaoId}", consumes = {"multipart/form-data"})
     public ResponseEntity<Solicitacao> criarSolicitacao(
             @PathVariable Long cidadaoId,
             @RequestParam("categoria") String categoria,
             @RequestParam("localizacao") String localizacao,
             @RequestParam(value = "observacao", required = false) String observacao,
-            @RequestParam("imagem") MultipartFile imagem) { //FOTO REAL
+            @RequestParam("imagem") MultipartFile imagem) {
 
         try {
-            // 1. Define onde a imagem vai ser salva no PC (Disco C)
-            String pastaDestino = "C:/ipora_imagens/";
-            Path caminhoPasta = Paths.get(pastaDestino);
+            // 1. Inicia o cliente S3
+            S3Client s3 = S3Client.builder().build();
 
-            // Se a pasta não existir no PC, o Java cria na hora
-            if (!Files.exists(caminhoPasta)) {
-                Files.createDirectories(caminhoPasta);
-            }
-
-            // 2. Gera um nome único para a foto (para não substituir fotos com o mesmo nome)
+            // 2. Gera um nome único profissional para a foto
             String nomeArquivo = UUID.randomUUID().toString() + "_" + imagem.getOriginalFilename();
-            Path caminhoArquivo = caminhoPasta.resolve(nomeArquivo);
 
-            // 3. SALVA O ARQUIVO FISICAMENTE NO COMPUTADOR
-            imagem.transferTo(caminhoArquivo.toFile());
+            // 3. Faz o Upload direto para a Amazon (Usando o nome completo para evitar erro)
+            s3.putObject(PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(nomeArquivo)
+                            .contentType(imagem.getContentType())
+                            .build(),
+                    software.amazon.awssdk.core.sync.RequestBody.fromBytes(imagem.getBytes()));
 
-            // 4. Salva os dados no Banco de Dados (PostgreSQL)
+            // 4. Cria a URL pública real da internet
+            String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
+
+            // 5. Salva no Banco de Dados do Railway
             Solicitacao novaSolicitacao = new Solicitacao();
             novaSolicitacao.setCategoria(categoria);
             novaSolicitacao.setLocalizacao(localizacao);
             novaSolicitacao.setObservacao(observacao);
             novaSolicitacao.setStatus("PENDENTE");
-            // Salva apenas o caminho de texto no banco
-            novaSolicitacao.setUrlImagem("file:///" + pastaDestino + nomeArquivo);
+            novaSolicitacao.setUrlImagem(urlNuvem);
 
-            // Associa o cidadão ao chamado
             var cidadaoOpt = cidadaoRepository.findById(cidadaoId);
             if(cidadaoOpt.isPresent()){
                 novaSolicitacao.setCidadao(cidadaoOpt.get());
             }
 
-            Solicitacao salva = solicitacaoRepository.save(novaSolicitacao);
-            return ResponseEntity.ok(salva);
+            return ResponseEntity.ok(solicitacaoRepository.save(novaSolicitacao));
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -79,58 +80,21 @@ public class SolicitacaoController {
 
     @GetMapping("/cidadao/{cidadaoId}")
     public ResponseEntity<List<Solicitacao>> listarPorCidadao(@PathVariable Long cidadaoId) {
-
-        // Puxa da base de dados todos os reportos do ID, do mais recente para o mais antigo
-        List<Solicitacao> meusReportos = solicitacaoRepository.findByCidadaoIdOrderByDataCriacaoDesc(cidadaoId);
-
-        return ResponseEntity.ok(meusReportos);
+        return ResponseEntity.ok(solicitacaoRepository.findByCidadaoIdOrderByDataCriacaoDesc(cidadaoId));
     }
 
-    //  Rota para Atualizar (Editar ou Mudar Status/Setor/Resposta)
     @PutMapping("/{id}")
-    public ResponseEntity<Solicitacao> atualizarSolicitacao(
-            @PathVariable Long id,
-            @RequestBody Solicitacao dadosAtualizados) {
-
-        var solicitacaoOpt = solicitacaoRepository.findById(id);
-        if (solicitacaoOpt.isEmpty()) return ResponseEntity.notFound().build();
-
-        Solicitacao solicitacaoExistente = solicitacaoOpt.get();
-
-        // Cidadão edita:
-        if (dadosAtualizados.getLocalizacao() != null) solicitacaoExistente.setLocalizacao(dadosAtualizados.getLocalizacao());
-        if (dadosAtualizados.getObservacao() != null) solicitacaoExistente.setObservacao(dadosAtualizados.getObservacao());
-
-        // Prefeitura edita:
-        if (dadosAtualizados.getStatus() != null) solicitacaoExistente.setStatus(dadosAtualizados.getStatus());
-        if (dadosAtualizados.getCategoria() != null) solicitacaoExistente.setCategoria(dadosAtualizados.getCategoria()); // 🔴 Permite transferir
-        if (dadosAtualizados.getResposta() != null) solicitacaoExistente.setResposta(dadosAtualizados.getResposta()); // 🔴 Guarda a resposta
-
-        return ResponseEntity.ok(solicitacaoRepository.save(solicitacaoExistente));
+    public ResponseEntity<Solicitacao> atualizarSolicitacao(@PathVariable Long id, @RequestBody Solicitacao dados) {
+        var opt = solicitacaoRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+        Solicitacao s = opt.get();
+        if (dados.getStatus() != null) s.setStatus(dados.getStatus());
+        if (dados.getResposta() != null) s.setResposta(dados.getResposta());
+        return ResponseEntity.ok(solicitacaoRepository.save(s));
     }
 
-    //  Rota para Excluir
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> excluirSolicitacao(@PathVariable Long id) {
-        if (!solicitacaoRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
-        }
-
-        solicitacaoRepository.deleteById(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    //  Rota para listar os chamados de um setor específico da prefeitura
-    @GetMapping("/setor/{categoria}")
-    public ResponseEntity<List<Solicitacao>> listarPorSetor(@PathVariable String categoria) {
-        List<Solicitacao> chamadosDoSetor = solicitacaoRepository.findByCategoriaOrderByDataCriacaoDesc(categoria);
-        return ResponseEntity.ok(chamadosDoSetor);
-    }
-
-    //  Rota para o Painel Web (Super Admin) - Traz TODAS as solicitações da cidade
     @GetMapping("/todas")
     public ResponseEntity<List<Solicitacao>> listarTodasAsSolicitacoes() {
         return ResponseEntity.ok(solicitacaoRepository.findAll());
     }
-
 }

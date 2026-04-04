@@ -1,4 +1,4 @@
-package com.ipora.api.config; // ⚠️ Mantenha o seu package se for diferente!
+package com.ipora.api; // ⚠️ Mantenha o seu package se for diferente!
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -16,10 +16,9 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")
                 .allowedHeaders("*");
     }
-
-    @Override
+}
+    /* @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/imagens/**")
                 .addResourceLocations("file:///C:/ipora_imagens/");
-    }
-}
+    } /*/
