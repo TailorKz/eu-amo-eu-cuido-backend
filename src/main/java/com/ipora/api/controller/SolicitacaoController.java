@@ -93,6 +93,47 @@ public class SolicitacaoController {
         return ResponseEntity.ok(solicitacaoRepository.save(s));
     }
 
+    // Rota exclusiva para o App Celular atualizar a solicitação enviando uma foto
+    @PutMapping(value = "/{id}/atualizar-com-foto", consumes = {"multipart/form-data"})
+    public ResponseEntity<Solicitacao> atualizarComFoto(
+            @PathVariable Long id,
+            @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "categoria", required = false) String categoria,
+            @RequestParam(value = "resposta", required = false) String resposta,
+            @RequestParam(value = "imagemResolvida", required = false) MultipartFile imagemResolvida) {
+
+        try {
+            var opt = solicitacaoRepository.findById(id);
+            if (opt.isEmpty()) return ResponseEntity.notFound().build();
+            Solicitacao s = opt.get();
+
+            if (status != null) s.setStatus(status);
+            if (categoria != null) s.setCategoria(categoria);
+            if (resposta != null) s.setResposta(resposta);
+
+            // Se o funcionário enviou uma foto, faz o upload para a Amazon S3
+            if (imagemResolvida != null && !imagemResolvida.isEmpty()) {
+                S3Client s3 = S3Client.builder().build();
+                String nomeArquivo = UUID.randomUUID().toString() + "_resolvido_" + imagemResolvida.getOriginalFilename();
+
+                s3.putObject(PutObjectRequest.builder()
+                                .bucket(bucketName)
+                                .key(nomeArquivo)
+                                .contentType(imagemResolvida.getContentType())
+                                .build(),
+                        software.amazon.awssdk.core.sync.RequestBody.fromBytes(imagemResolvida.getBytes()));
+
+                String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
+                s.setUrlImagemResolvida(urlNuvem);
+            }
+
+            return ResponseEntity.ok(solicitacaoRepository.save(s));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     // Rota para o Painel Web (Super Admin) - Traz tudo de uma cidade
     @GetMapping("/cidade/{cidade}")
     public ResponseEntity<List<Solicitacao>> listarPorCidade(@PathVariable String cidade) {

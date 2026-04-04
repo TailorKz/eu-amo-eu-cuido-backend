@@ -27,6 +27,9 @@ public class Solicitacao {
 
     private String urlImagem; // O link da foto armazenada na nuvem
 
+    // Coluna para guardar a foto do problema resolvido pelo funcionário
+    private String urlImagemResolvida;
+
     private String status = "PENDENTE"; // PENDENTE, EM_ANDAMENTO, RESOLVIDO
 
     private LocalDateTime dataCriacao = LocalDateTime.now();
