@@ -27,6 +27,8 @@ public class ConfiguracaoPrefeitura {
     // Chave do WhatsApp/Twilio
     private String tokenTwilio;
 
+    @Column(unique = true) // Garante que cada cidade tenha apenas UMA configuração
+    private String cidade;
     // ==========================================
     // GETTERS E SETTERS (Obrigatórios no Java)
     // ==========================================
@@ -86,4 +88,8 @@ public class ConfiguracaoPrefeitura {
     public void setPopUpApenasUmaVez(boolean popUpApenasUmaVez) {
         this.popUpApenasUmaVez = popUpApenasUmaVez;
     }
+
+    public String getCidade() { return cidade; }
+
+    public void setCidade(String cidade) { this.cidade = cidade; }
 }

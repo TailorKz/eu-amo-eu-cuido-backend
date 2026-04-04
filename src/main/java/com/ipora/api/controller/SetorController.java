@@ -16,25 +16,28 @@ public class SetorController {
     private SetorRepository repository;
 
     @GetMapping
-    public ResponseEntity<List<Setor>> listarSetores() {
-        List<Setor> setores = repository.findAll();
+    //  o app precisa enviar a cidade na requisição (ex: /api/setores?cidade=Iporã do Oeste)
+    public ResponseEntity<List<Setor>> listarSetores(@RequestParam String cidade) {
+        // Busca apenas os setores DAQUELA cidade
+        List<Setor> setores = repository.findByCidade(cidade);
 
-        // Se a tabela estiver vazia, recria os setores padrão!
+        // Se a tabela estiver vazia PARA ESTA CIDADE, cria os setores padrão
         if (setores.isEmpty()) {
-            repository.save(new Setor("Infraestrutura", "construct-outline"));
-            repository.save(new Setor("Iluminação Pública", "bulb-outline"));
-            repository.save(new Setor("Urbanismo", "business-outline"));
-            repository.save(new Setor("Limpeza Urbana", "trash-bin-outline"));
-            repository.save(new Setor("Saneamento e água", "water-outline"));
-            repository.save(new Setor("Saúde Pública", "medkit-outline"));
+            repository.save(new Setor("Infraestrutura", "construct-outline", cidade));
+            repository.save(new Setor("Iluminação Pública", "bulb-outline", cidade));
+            repository.save(new Setor("Urbanismo", "business-outline", cidade));
+            repository.save(new Setor("Limpeza Urbana", "trash-bin-outline", cidade));
+            repository.save(new Setor("Saneamento e água", "water-outline", cidade));
+            repository.save(new Setor("Saúde Pública", "medkit-outline", cidade));
 
-            setores = repository.findAll();
+            setores = repository.findByCidade(cidade);
         }
         return ResponseEntity.ok(setores);
     }
 
     @PostMapping
     public ResponseEntity<Setor> criarSetor(@RequestBody Setor setor) {
+        // O app enviará o objeto setor já com o nome da cidade preenchido
         return ResponseEntity.ok(repository.save(setor));
     }
 

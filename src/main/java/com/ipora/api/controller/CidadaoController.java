@@ -39,9 +39,10 @@ public class CidadaoController {
         return ResponseEntity.status(401).build();
     }
 
-    @GetMapping("/todos")
-    public ResponseEntity<List<Cidadao>> listarTodos() {
-        return ResponseEntity.ok(repository.findAll());
+    // o Admin só vê a cidade dele.
+    @GetMapping("/cidade/{cidade}")
+    public ResponseEntity<List<Cidadao>> listarPorCidade(@PathVariable String cidade) {
+        return ResponseEntity.ok(repository.findByCidade(cidade));
     }
 
     //  Rota para o Painel Web (Super Admin) - Promover/Alterar o cargo de um usuário

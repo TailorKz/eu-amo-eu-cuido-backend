@@ -5,8 +5,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> {
-    // Busca todas as solicitações de um cidadão específico
     List<Solicitacao> findByCidadaoIdOrderByDataCriacaoDesc(Long cidadaoId);
-    // Puxa as solicitações de uma categoria específica, da mais nova para a mais antiga
-    List<Solicitacao> findByCategoriaOrderByDataCriacaoDesc(String categoria);
+
+    // Busca todas as solicitações de uma cidade (através da cidade do cidadão)
+    List<Solicitacao> findByCidadaoCidadeOrderByDataCriacaoDesc(String cidade);
+
+    //  Busca as solicitações de um setor específico, MAS restrito à cidade!
+    List<Solicitacao> findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(String categoria, String cidade);
 }

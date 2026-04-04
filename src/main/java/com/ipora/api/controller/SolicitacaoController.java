@@ -93,8 +93,17 @@ public class SolicitacaoController {
         return ResponseEntity.ok(solicitacaoRepository.save(s));
     }
 
-    @GetMapping("/todas")
-    public ResponseEntity<List<Solicitacao>> listarTodasAsSolicitacoes() {
-        return ResponseEntity.ok(solicitacaoRepository.findAll());
+    // Rota para o Painel Web (Super Admin) - Traz tudo de uma cidade
+    @GetMapping("/cidade/{cidade}")
+    public ResponseEntity<List<Solicitacao>> listarPorCidade(@PathVariable String cidade) {
+        return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(cidade));
+    }
+
+    // Rota para o Painel Web (Funcionário) - Traz do setor dele, na cidade dele
+    @GetMapping("/setor/{setor}")
+    public ResponseEntity<List<Solicitacao>> listarPorSetorECidade(
+            @PathVariable String setor,
+            @RequestParam String cidade) {
+        return ResponseEntity.ok(solicitacaoRepository.findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(setor, cidade));
     }
 }
