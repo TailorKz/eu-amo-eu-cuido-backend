@@ -12,4 +12,7 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     //  Busca as solicitações de um setor específico, MAS restrito à cidade!
     List<Solicitacao> findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(String categoria, String cidade);
+
+    // Busca para o Vereador (Apenas status específicos daquela cidade)
+    List<Solicitacao> findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(String cidade, List<String> status);
 }

@@ -147,4 +147,13 @@ public class SolicitacaoController {
             @RequestParam String cidade) {
         return ResponseEntity.ok(solicitacaoRepository.findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(setor, cidade));
     }
+
+    // Rota para a aba "Fiscalização" do Vereador
+    @GetMapping("/vereador")
+    public ResponseEntity<List<Solicitacao>> listarParaVereador(@RequestParam String cidade) {
+        // O Vereador só pode ver o que já está em andamento ou resolvido
+        List<String> statusPermitidos = java.util.Arrays.asList("EM_ANDAMENTO", "RESOLVIDO");
+
+        return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(cidade, statusPermitidos));
+    }
 }
