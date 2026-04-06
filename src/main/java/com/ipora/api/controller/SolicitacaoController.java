@@ -134,7 +134,7 @@ public class SolicitacaoController {
         }
     }
 
-    // Rota para o Painel Web (Super Admin) - Traz tudo de uma cidade
+    // Rota para o Painel Web (Super Admin)
     @GetMapping("/cidade/{cidade}")
     public ResponseEntity<List<Solicitacao>> listarPorCidade(@PathVariable String cidade) {
         return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(cidade));
