@@ -15,4 +15,7 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     // Busca para o Vereador (Apenas status específicos daquela cidade)
     List<Solicitacao> findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(String cidade, List<String> status);
+
+    // Conta quantas solicitações uma cidade específica teve dentro de um período (ano)
+    Long countByCidadaoCidadeAndDataCriacaoBetween(String cidade, java.time.LocalDateTime inicio, java.time.LocalDateTime fim);
 }

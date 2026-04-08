@@ -30,6 +30,9 @@ public class Solicitacao {
     // Coluna para guardar a foto do problema resolvido pelo funcionário
     private String urlImagemResolvida;
 
+    // Coluna para o número oficial do protocolo
+    private String protocolo;
+
     private String status = "PENDENTE"; // PENDENTE, EM_ANDAMENTO, RESOLVIDO
 
     private LocalDateTime dataCriacao = LocalDateTime.now();

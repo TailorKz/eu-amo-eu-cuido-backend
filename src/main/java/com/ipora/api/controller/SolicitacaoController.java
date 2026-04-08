@@ -65,11 +65,38 @@ public class SolicitacaoController {
             novaSolicitacao.setStatus("PENDENTE");
             novaSolicitacao.setUrlImagem(urlNuvem);
 
+            // 6. Busca o cidadão para associar à solicitação e GERAR O PROTOCOLO
             var cidadaoOpt = cidadaoRepository.findById(cidadaoId);
             if(cidadaoOpt.isPresent()){
-                novaSolicitacao.setCidadao(cidadaoOpt.get());
+                com.ipora.api.domain.Cidadao cidadao = cidadaoOpt.get();
+                novaSolicitacao.setCidadao(cidadao);
+
+                //  GERAÇÃO DO PROTOCOLO OFICIAL
+
+                String nomeCidade = cidadao.getCidade();
+
+                // Pega as 3 primeiras letras e remove espaços se houver (Ex: "Iporã do Oeste" -> "IPO")
+                String sigla = nomeCidade.length() >= 3
+                        ? nomeCidade.substring(0, 3).toUpperCase().replace(" ", "")
+                        : nomeCidade.toUpperCase();
+
+                // Pega o ano atual e define o período para a busca no banco (1 Jan a 31 Dez)
+                int anoAtual = java.time.LocalDate.now().getYear();
+                java.time.LocalDateTime inicioAno = java.time.LocalDateTime.of(anoAtual, 1, 1, 0, 0);
+                java.time.LocalDateTime fimAno = java.time.LocalDateTime.of(anoAtual, 12, 31, 23, 59, 59);
+
+                // Conta quantas solicitações essa cidade já teve neste ano
+                Long contagem = solicitacaoRepository.countByCidadaoCidadeAndDataCriacaoBetween(nomeCidade, inicioAno, fimAno);
+
+                // Monta o protocolo no formato SIG-ANO-0000 (Ex: IPO-2026-0001)
+                String protocoloGerado = String.format("%s-%d-%04d", sigla, anoAtual, contagem + 1);
+
+                // Atribui à solicitação
+                novaSolicitacao.setProtocolo(protocoloGerado);
+                // ========================================================
             }
 
+            // 7. Salva a solicitação (agora com o protocolo incluído) e retorna
             return ResponseEntity.ok(solicitacaoRepository.save(novaSolicitacao));
 
         } catch (Exception e) {
