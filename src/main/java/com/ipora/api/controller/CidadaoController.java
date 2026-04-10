@@ -14,9 +14,18 @@ public class CidadaoController {
     @Autowired
     private CidadaoRepository repository;
 
+    // 🔴 INJETA O SERVIÇO DE SMS NO CONTROLLER
+    @Autowired
+    private com.ipora.api.service.SmsService smsService;
+
+    // 🔴 MÉTODO PARA GERAR O CÓDIGO ALEATÓRIO (Ex: 4589)
+    private String gerarCodigoVerificacao() {
+        return String.format("%04d", new java.util.Random().nextInt(10000));
+    }
+
     @PostMapping("/cadastrar")
     public ResponseEntity<Cidadao> cadastrar(@RequestBody Cidadao cidadao) {
-        //  Verifica Telefone + Cidade
+        // Verifica Telefone + Cidade
         if (repository.findByTelefoneAndCidade(cidadao.getTelefone(), cidadao.getCidade()).isPresent()) {
             return ResponseEntity.badRequest().build();
         }
@@ -27,7 +36,7 @@ public class CidadaoController {
 
     @PostMapping("/login")
     public ResponseEntity<Cidadao> login(@RequestBody Cidadao dadosLogin) {
-        //  Busca pelo Telefone + Cidade que vieram do aplicativo
+        // Busca pelo Telefone + Cidade que vieram do aplicativo
         var cidadaoOpt = repository.findByTelefoneAndCidade(dadosLogin.getTelefone(), dadosLogin.getCidade());
 
         if (cidadaoOpt.isPresent()) {
@@ -45,31 +54,27 @@ public class CidadaoController {
         return ResponseEntity.ok(repository.findByCidade(cidade));
     }
 
-    //  Rota para o Painel Web (Super Admin) - Promover/Alterar o cargo de um usuário
+    // Rota para o Painel Web (Super Admin) - Promover/Alterar o cargo de um usuário
     @PutMapping("/{id}/perfil")
     public ResponseEntity<Cidadao> atualizarPerfil(
             @PathVariable Long id,
             @RequestBody Cidadao dadosAtualizados) {
 
-        // Usando apenas "repository"
         var cidadaoOpt = repository.findById(id);
 
         if(cidadaoOpt.isPresent()){
             Cidadao cidadao = cidadaoOpt.get();
-            // Atualiza apenas o nível de acesso e o setor da pessoa
             cidadao.setPerfil(dadosAtualizados.getPerfil());
             cidadao.setSetorAtuacao(dadosAtualizados.getSetorAtuacao());
-
-            // Usando apenas "repository"
             return ResponseEntity.ok(repository.save(cidadao));
         }
         return ResponseEntity.notFound().build();
     }
+
     // ==========================================
-    //  ROTAS DE SEGURANÇA (PERFIL)
+    // ROTAS DE SEGURANÇA (PERFIL DO APP LOGADO)
     // ==========================================
 
-    // 1. GERA CÓDIGO E ENVIA WHATSAPP
     @PostMapping("/{id}/solicitar-codigo")
     public ResponseEntity<Void> solicitarCodigoVerificacao(
             @PathVariable Long id,
@@ -81,19 +86,18 @@ public class CidadaoController {
 
         Cidadao cidadao = cidadaoOpt.get();
 
-        // Gera um código de 4 dígitos aleatório (ex: 4092)
-        String codigoGerado = String.format("%04d", new java.util.Random().nextInt(10000));
+        String codigoGerado = gerarCodigoVerificacao();
         cidadao.setCodigoVerificacao(codigoGerado);
+        cidadao.setExpiracaoCodigo(java.time.LocalDateTime.now().plusMinutes(10));
         repository.save(cidadao);
 
-        // AQUI ENTRARÁ O CÓDIGO DO TWILIO NO FUTURO
+        // 🔴 USA O TWILIO PARA ENVIAR SMS
         String numeroDestino = tipo.equals("NUMERO") ? novoNumero : cidadao.getTelefone();
-        System.out.println("Enviando WhatsApp para " + numeroDestino + " - Código: " + codigoGerado);
+        smsService.enviarSms(numeroDestino, codigoGerado);
 
         return ResponseEntity.ok().build();
     }
 
-    // 2. ALTERAR A SENHA (Recebe o código + nova senha)
     @PutMapping("/{id}/alterar-senha")
     public ResponseEntity<String> alterarSenha(
             @PathVariable Long id,
@@ -105,16 +109,18 @@ public class CidadaoController {
         Cidadao cidadao = cidadaoOpt.get();
 
         if (cidadao.getCodigoVerificacao() != null && cidadao.getCodigoVerificacao().equals(codigo)) {
+            if (cidadao.getExpiracaoCodigo() != null && cidadao.getExpiracaoCodigo().isBefore(java.time.LocalDateTime.now())) {
+                return ResponseEntity.status(401).body("Código expirado.");
+            }
             cidadao.setSenha(novaSenha);
-            cidadao.setCodigoVerificacao(null); // Limpa o código depois de usar
+            cidadao.setCodigoVerificacao(null);
+            cidadao.setExpiracaoCodigo(null);
             repository.save(cidadao);
             return ResponseEntity.ok("Senha alterada com sucesso.");
         }
-
         return ResponseEntity.badRequest().body("Código inválido.");
     }
 
-    // 3. VERIFICAR A SENHA ATUAL (Antes de deixar trocar o número)
     @PostMapping("/{id}/verificar-senha")
     public ResponseEntity<Boolean> verificarSenhaAtual(
             @PathVariable Long id,
@@ -127,7 +133,6 @@ public class CidadaoController {
         return ResponseEntity.status(401).body(false);
     }
 
-    // 4. ALTERAR O NÚMERO (Recebe o código + o novo número)
     @PutMapping("/{id}/alterar-numero")
     public ResponseEntity<Cidadao> alterarNumero(
             @PathVariable Long id,
@@ -139,17 +144,17 @@ public class CidadaoController {
         Cidadao cidadao = cidadaoOpt.get();
 
         if (cidadao.getCodigoVerificacao() != null && cidadao.getCodigoVerificacao().equals(codigo)) {
+            if (cidadao.getExpiracaoCodigo() != null && cidadao.getExpiracaoCodigo().isBefore(java.time.LocalDateTime.now())) {
+                return ResponseEntity.status(401).build();
+            }
             cidadao.setTelefone(novoNumero);
             cidadao.setCodigoVerificacao(null);
-
-            // Devolve o cidadão atualizado para o Celular salvar no useAuthStore
+            cidadao.setExpiracaoCodigo(null);
             return ResponseEntity.ok(repository.save(cidadao));
         }
-
         return ResponseEntity.badRequest().build();
     }
 
-    //  EXCLUIR CONTA DEFINITIVAMENTE (Exige o código validado)
     @DeleteMapping("/{id}/excluir-conta")
     public ResponseEntity<Void> excluirConta(
             @PathVariable Long id,
@@ -159,16 +164,13 @@ public class CidadaoController {
         if(cidadaoOpt.isEmpty()) return ResponseEntity.notFound().build();
         Cidadao cidadao = cidadaoOpt.get();
 
-        // Verifica se o código bate antes de apagar a vida da pessoa!
         if (cidadao.getCodigoVerificacao() != null && cidadao.getCodigoVerificacao().equals(codigo)) {
             repository.delete(cidadao);
             return ResponseEntity.noContent().build();
         }
-
         return ResponseEntity.badRequest().build();
     }
 
-    // Rota para o telemóvel atualizar o Token sempre que abrir o app
     @PutMapping("/{id}/push-token")
     public ResponseEntity<Void> salvarPushToken(
             @PathVariable Long id,
@@ -182,5 +184,55 @@ public class CidadaoController {
             return ResponseEntity.ok().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    // ==========================================
+    // ROTAS PARA O "ESQUECI A SENHA" (APP DESLOGADO)
+    // ==========================================
+
+    @PostMapping("/recuperar-senha/solicitar")
+    public ResponseEntity<?> solicitarCodigoRecuperacao(@RequestParam String telefone, @RequestParam String cidade) {
+        var cidadaoOpt = repository.findByTelefoneAndCidade(telefone, cidade);
+        if (cidadaoOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Usuário não encontrado.");
+        }
+
+        Cidadao cidadao = cidadaoOpt.get();
+        String codigo = gerarCodigoVerificacao();
+
+        cidadao.setCodigoVerificacao(codigo);
+        cidadao.setExpiracaoCodigo(java.time.LocalDateTime.now().plusMinutes(10));
+        repository.save(cidadao);
+
+        // 🔴 DISPARA O SMS VIA TWILIO
+        smsService.enviarSms(cidadao.getTelefone(), codigo);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/recuperar-senha/alterar")
+    public ResponseEntity<?> recuperarSenhaComCodigo(
+            @RequestParam String telefone,
+            @RequestParam String cidade,
+            @RequestParam String codigo,
+            @RequestParam String novaSenha) {
+
+        var cidadaoOpt = repository.findByTelefoneAndCidade(telefone, cidade);
+        if (cidadaoOpt.isEmpty()) return ResponseEntity.badRequest().build();
+
+        Cidadao cidadao = cidadaoOpt.get();
+
+        if (cidadao.getCodigoVerificacao() == null || !cidadao.getCodigoVerificacao().equals(codigo)) {
+            return ResponseEntity.status(401).body("Código inválido.");
+        }
+        if (cidadao.getExpiracaoCodigo().isBefore(java.time.LocalDateTime.now())) {
+            return ResponseEntity.status(401).body("Código expirado.");
+        }
+
+        cidadao.setSenha(novaSenha);
+        cidadao.setCodigoVerificacao(null);
+        cidadao.setExpiracaoCodigo(null);
+        repository.save(cidadao);
+
+        return ResponseEntity.ok().build();
     }
 }
