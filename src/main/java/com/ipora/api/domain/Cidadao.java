@@ -27,6 +27,9 @@ public class Cidadao {
 
     private String senha;
 
+
+    private java.time.LocalDateTime expiracaoCodigo;
+
 //  NOVAS COLUNAS PARA O SISTEMA WEB
 
     // Define o poder do usuário: "CIDADAO", "FUNCIONARIO", "GESTOR_SETOR", "SUPER_ADMIN"
