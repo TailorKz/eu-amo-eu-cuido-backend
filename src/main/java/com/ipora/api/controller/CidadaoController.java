@@ -27,10 +27,14 @@ public class CidadaoController {
     @PostMapping("/enviar-otp-cadastro")
     public ResponseEntity<java.util.Map<String, String>> enviarOtpCadastro(@RequestParam String telefone) {
         String codigo = gerarCodigoVerificacao();
+
+        // Dispara o SMS
         smsService.enviarSms(telefone, codigo);
 
+        // Devolve o código gerado para o App poder comparar com o que o usuário digitar
         java.util.Map<String, String> response = new java.util.HashMap<>();
-        response.put("codigo", codigo); // Retorna o código para o App validar
+        response.put("codigo", codigo);
+
         return ResponseEntity.ok(response);
     }
 

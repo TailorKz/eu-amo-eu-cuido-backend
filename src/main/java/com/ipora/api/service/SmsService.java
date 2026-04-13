@@ -26,14 +26,14 @@ public class SmsService {
 
     public void enviarSms(String numeroDestino, String codigo) {
         try {
-            // Formata o número para o padrão internacional
+            // Formata o número para o padrão internacional do Brasil
             if (!numeroDestino.startsWith("+55")) {
                 numeroDestino = "+55" + numeroDestino;
             }
 
-            String textoMensagem = "[Eu Amo, Eu Cuido] O seu codigo de verificacao e: " + codigo;
+            String textoMensagem = "[Eu Amo, Eu Cuido] O seu codigo de seguranca e " + codigo + ". Nao compartilhe com ninguem.";
 
-            //SMS
+            // dispara um SMS
             Message message = Message.creator(
                     new PhoneNumber(numeroDestino),
                     new PhoneNumber(twilioPhoneNumber),
