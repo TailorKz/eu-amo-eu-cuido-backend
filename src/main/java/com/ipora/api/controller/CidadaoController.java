@@ -121,6 +121,23 @@ public class CidadaoController {
         return ResponseEntity.badRequest().body("Código inválido.");
     }
 
+    @PutMapping("/{id}/alterar-senha-direta")
+    public ResponseEntity<String> alterarSenhaDireta(
+            @PathVariable Long id,
+            @RequestParam String novaSenha) {
+
+        var cidadaoOpt = repository.findById(id);
+        if (cidadaoOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Cidadao cidadao = cidadaoOpt.get();
+        cidadao.setSenha(novaSenha);
+        repository.save(cidadao);
+
+        return ResponseEntity.ok("Senha alterada com sucesso.");
+    }
+
     @PostMapping("/{id}/verificar-senha")
     public ResponseEntity<Boolean> verificarSenhaAtual(
             @PathVariable Long id,
@@ -204,7 +221,7 @@ public class CidadaoController {
         cidadao.setExpiracaoCodigo(java.time.LocalDateTime.now().plusMinutes(10));
         repository.save(cidadao);
 
-        // 🔴 DISPARA O SMS VIA TWILIO
+        //  DISPARA O SMS VIA TWILIO
         smsService.enviarSms(cidadao.getTelefone(), codigo);
         return ResponseEntity.ok().build();
     }

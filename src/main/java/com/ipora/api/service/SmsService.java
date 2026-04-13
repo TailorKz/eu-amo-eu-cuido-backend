@@ -31,18 +31,19 @@ public class SmsService {
                 numeroDestino = "+55" + numeroDestino;
             }
 
-            String textoMensagem = "Eu Amo, Eu Cuido: Seu codigo de seguranca e " + codigo + ". Nao compartilhe com ninguem.";
+            String textoMensagem = "Eu Amo, Eu Cuido: O seu codigo de seguranca e *" + codigo + "*. Nao compartilhe com ninguem.";
 
+            // Adicionar "whatsapp:" antes dos números
             Message message = Message.creator(
-                    new PhoneNumber(numeroDestino),
-                    new PhoneNumber(twilioPhoneNumber),
+                    new PhoneNumber("whatsapp:" + numeroDestino),
+                    new PhoneNumber("whatsapp:" + twilioPhoneNumber), // O seu número do Twilio Business
                     textoMensagem
             ).create();
 
-            System.out.println("SMS enviado! SID: " + message.getSid());
+            System.out.println("WhatsApp enviado! SID: " + message.getSid());
 
         } catch (Exception e) {
-            System.err.println("Erro ao enviar SMS: " + e.getMessage());
+            System.err.println("Erro ao enviar WhatsApp: " + e.getMessage());
         }
     }
 }
