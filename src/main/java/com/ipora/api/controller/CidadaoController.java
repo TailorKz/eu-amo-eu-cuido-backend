@@ -106,7 +106,7 @@ public class CidadaoController {
         cidadao.setExpiracaoCodigo(java.time.LocalDateTime.now().plusMinutes(10));
         repository.save(cidadao);
 
-        // 🔴 USA O TWILIO PARA ENVIAR SMS
+        //  USA O TWILIO PARA ENVIAR SMS
         String numeroDestino = tipo.equals("NUMERO") ? novoNumero : cidadao.getTelefone();
         smsService.enviarSms(numeroDestino, codigoGerado);
 
@@ -264,6 +264,28 @@ public class CidadaoController {
         cidadao.setCodigoVerificacao(null);
         cidadao.setExpiracaoCodigo(null);
         repository.save(cidadao);
+
+        return ResponseEntity.ok().build();
+    }
+
+    // 🔴 ROTA NOVA: Valida se o código SMS está correto ANTES de deixar o usuário digitar a nova senha
+    @PostMapping("/recuperar-senha/validar-codigo")
+    public ResponseEntity<?> validarCodigoRecuperacao(
+            @RequestParam String telefone,
+            @RequestParam String cidade,
+            @RequestParam String codigo) {
+
+        var cidadaoOpt = repository.findByTelefoneAndCidade(telefone, cidade);
+        if (cidadaoOpt.isEmpty()) return ResponseEntity.badRequest().build();
+
+        Cidadao cidadao = cidadaoOpt.get();
+
+        if (cidadao.getCodigoVerificacao() == null || !cidadao.getCodigoVerificacao().equals(codigo)) {
+            return ResponseEntity.status(401).body("Código inválido.");
+        }
+        if (cidadao.getExpiracaoCodigo().isBefore(java.time.LocalDateTime.now())) {
+            return ResponseEntity.status(401).body("Código expirado.");
+        }
 
         return ResponseEntity.ok().build();
     }
