@@ -26,24 +26,24 @@ public class SmsService {
 
     public void enviarSms(String numeroDestino, String codigo) {
         try {
-            // Formata o número para o padrão internacional do Brasil
+            // Formata o número para o padrão internacional
             if (!numeroDestino.startsWith("+55")) {
                 numeroDestino = "+55" + numeroDestino;
             }
 
-            String textoMensagem = "Eu Amo, Eu Cuido: O seu codigo de seguranca e *" + codigo + "*. Nao compartilhe com ninguem.";
+            String textoMensagem = "[Eu Amo, Eu Cuido] O seu codigo de verificacao e: " + codigo;
 
-            // Adicionar "whatsapp:" antes dos números
+            //SMS
             Message message = Message.creator(
-                    new PhoneNumber("whatsapp:" + numeroDestino),
-                    new PhoneNumber("whatsapp:" + twilioPhoneNumber), // O seu número do Twilio Business
+                    new PhoneNumber(numeroDestino),
+                    new PhoneNumber(twilioPhoneNumber),
                     textoMensagem
             ).create();
 
-            System.out.println("WhatsApp enviado! SID: " + message.getSid());
+            System.out.println("SMS enviado! SID: " + message.getSid());
 
         } catch (Exception e) {
-            System.err.println("Erro ao enviar WhatsApp: " + e.getMessage());
+            System.err.println("Erro ao enviar SMS: " + e.getMessage());
         }
     }
 }

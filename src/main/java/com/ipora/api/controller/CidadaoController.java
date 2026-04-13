@@ -14,13 +14,24 @@ public class CidadaoController {
     @Autowired
     private CidadaoRepository repository;
 
-    // 🔴 INJETA O SERVIÇO DE SMS NO CONTROLLER
+    //  INJETA O SERVIÇO DE SMS NO CONTROLLER
     @Autowired
     private com.ipora.api.service.SmsService smsService;
 
-    // 🔴 MÉTODO PARA GERAR O CÓDIGO ALEATÓRIO (Ex: 4589)
+    // MÉTODO PARA GERAR O CÓDIGO ALEATÓRIO (Ex: 4589)
     private String gerarCodigoVerificacao() {
         return String.format("%04d", new java.util.Random().nextInt(10000));
+    }
+
+    //  ROTA NOVA: Gera OTP para Cadastro via SMS
+    @PostMapping("/enviar-otp-cadastro")
+    public ResponseEntity<java.util.Map<String, String>> enviarOtpCadastro(@RequestParam String telefone) {
+        String codigo = gerarCodigoVerificacao();
+        smsService.enviarSms(telefone, codigo);
+
+        java.util.Map<String, String> response = new java.util.HashMap<>();
+        response.put("codigo", codigo); // Retorna o código para o App validar
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/cadastrar")
