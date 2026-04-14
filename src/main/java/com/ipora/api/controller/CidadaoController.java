@@ -268,7 +268,7 @@ public class CidadaoController {
         return ResponseEntity.ok().build();
     }
 
-    // 🔴 ROTA NOVA: Valida se o código SMS está correto ANTES de deixar o usuário digitar a nova senha
+    //  Valida se o código SMS está correto ANTES de deixar o usuário digitar a nova senha
     @PostMapping("/recuperar-senha/validar-codigo")
     public ResponseEntity<?> validarCodigoRecuperacao(
             @RequestParam String telefone,
