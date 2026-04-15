@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-// REMOVEMOS o import conflitante do RequestBody da Amazon aqui!
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -40,13 +39,13 @@ public class SolicitacaoController {
             @RequestParam("imagem") MultipartFile imagem) {
 
         try {
-            // 1. Inicia o cliente S3
-            S3Client s3 = S3Client.builder().build();
+            // 🔴 CORREÇÃO AQUI: Dizemos ao Java exatamente qual é a Região da Amazon!
+            S3Client s3 = S3Client.builder()
+                    .region(software.amazon.awssdk.regions.Region.of(region))
+                    .build();
 
-            // 2. Gera um nome único profissional para a foto
             String nomeArquivo = UUID.randomUUID().toString() + "_" + imagem.getOriginalFilename();
 
-            // 3. Faz o Upload direto para a Amazon (Usando o nome completo para evitar erro)
             s3.putObject(PutObjectRequest.builder()
                             .bucket(bucketName)
                             .key(nomeArquivo)
@@ -54,10 +53,8 @@ public class SolicitacaoController {
                             .build(),
                     software.amazon.awssdk.core.sync.RequestBody.fromBytes(imagem.getBytes()));
 
-            // 4. Cria a URL pública real da internet
             String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
 
-            // 5. Salva no Banco de Dados do Railway
             Solicitacao novaSolicitacao = new Solicitacao();
             novaSolicitacao.setCategoria(categoria);
             novaSolicitacao.setLocalizacao(localizacao);
@@ -65,43 +62,31 @@ public class SolicitacaoController {
             novaSolicitacao.setStatus("PENDENTE");
             novaSolicitacao.setUrlImagem(urlNuvem);
 
-            // 6. Busca o cidadão para associar à solicitação e GERAR O PROTOCOLO
             var cidadaoOpt = cidadaoRepository.findById(cidadaoId);
             if(cidadaoOpt.isPresent()){
                 com.ipora.api.domain.Cidadao cidadao = cidadaoOpt.get();
                 novaSolicitacao.setCidadao(cidadao);
 
-                //  GERAÇÃO DO PROTOCOLO OFICIAL
-
                 String nomeCidade = cidadao.getCidade();
-
-                // Pega as 3 primeiras letras e remove espaços se houver (Ex: "Iporã do Oeste" -> "IPO")
                 String sigla = nomeCidade.length() >= 3
                         ? nomeCidade.substring(0, 3).toUpperCase().replace(" ", "")
                         : nomeCidade.toUpperCase();
 
-                // Pega o ano atual e define o período para a busca no banco (1 Jan a 31 Dez)
                 int anoAtual = java.time.LocalDate.now().getYear();
                 java.time.LocalDateTime inicioAno = java.time.LocalDateTime.of(anoAtual, 1, 1, 0, 0);
                 java.time.LocalDateTime fimAno = java.time.LocalDateTime.of(anoAtual, 12, 31, 23, 59, 59);
 
-                // Conta quantas solicitações essa cidade já teve neste ano
                 Long contagem = solicitacaoRepository.countByCidadaoCidadeAndDataCriacaoBetween(nomeCidade, inicioAno, fimAno);
-
-                // Monta o protocolo no formato SIG-ANO-0000 (Ex: IPO-2026-0001)
                 String protocoloGerado = String.format("%s-%d-%04d", sigla, anoAtual, contagem + 1);
 
-                // Atribui à solicitação
                 novaSolicitacao.setProtocolo(protocoloGerado);
-                // ========================================================
             }
 
-            // 7. Salva a solicitação (agora com o protocolo incluído) e retorna
             return ResponseEntity.ok(solicitacaoRepository.save(novaSolicitacao));
 
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
+            return ResponseEntity.internalServerError().build(); // <--- É este erro que estava a rebentar!
         }
     }
 
@@ -120,7 +105,6 @@ public class SolicitacaoController {
         return ResponseEntity.ok(solicitacaoRepository.save(s));
     }
 
-    // Rota exclusiva para o App Celular atualizar a solicitação enviando uma foto
     @PutMapping(value = "/{id}/atualizar-com-foto", consumes = {"multipart/form-data"})
     public ResponseEntity<Solicitacao> atualizarComFoto(
             @PathVariable Long id,
@@ -138,9 +122,12 @@ public class SolicitacaoController {
             if (categoria != null) s.setCategoria(categoria);
             if (resposta != null) s.setResposta(resposta);
 
-            // Se o funcionário enviou uma foto, faz o upload para a Amazon S3
             if (imagemResolvida != null && !imagemResolvida.isEmpty()) {
-                S3Client s3 = S3Client.builder().build();
+                // 🔴 CORREÇÃO AQUI TAMBÉM (Força a Região)
+                S3Client s3 = S3Client.builder()
+                        .region(software.amazon.awssdk.regions.Region.of(region))
+                        .build();
+
                 String nomeArquivo = UUID.randomUUID().toString() + "_resolvido_" + imagemResolvida.getOriginalFilename();
 
                 s3.putObject(PutObjectRequest.builder()
@@ -161,13 +148,11 @@ public class SolicitacaoController {
         }
     }
 
-    // Rota para o Painel Web (Super Admin)
     @GetMapping("/cidade/{cidade}")
     public ResponseEntity<List<Solicitacao>> listarPorCidade(@PathVariable String cidade) {
         return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(cidade));
     }
 
-    // Rota para o Painel Web (Funcionário) - Traz do setor dele, na cidade dele
     @GetMapping("/setor/{setor}")
     public ResponseEntity<List<Solicitacao>> listarPorSetorECidade(
             @PathVariable String setor,
@@ -175,12 +160,9 @@ public class SolicitacaoController {
         return ResponseEntity.ok(solicitacaoRepository.findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(setor, cidade));
     }
 
-    // Rota para a aba "Fiscalização" do Vereador
     @GetMapping("/vereador")
     public ResponseEntity<List<Solicitacao>> listarParaVereador(@RequestParam String cidade) {
-        // O Vereador só pode ver o que já está em andamento ou resolvido
         List<String> statusPermitidos = java.util.Arrays.asList("EM_ANDAMENTO", "RESOLVIDO");
-
         return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(cidade, statusPermitidos));
     }
 
