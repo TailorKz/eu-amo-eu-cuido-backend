@@ -39,14 +39,31 @@ public class CidadaoController {
     }
 
     @PostMapping("/cadastrar")
-    public ResponseEntity<Cidadao> cadastrar(@RequestBody Cidadao cidadao) {
-        // Verifica Telefone + Cidade
-        if (repository.findByTelefoneAndCidade(cidadao.getTelefone(), cidadao.getCidade()).isPresent()) {
-            return ResponseEntity.badRequest().build();
+    public ResponseEntity<?> cadastrarPeloApp(@RequestBody Cidadao novoCidadao) {
+
+        var existenteOpt = repository.findByTelefoneAndCidade(novoCidadao.getTelefone(), novoCidadao.getCidade());
+
+        if (existenteOpt.isPresent()) {
+            Cidadao existente = existenteOpt.get();
+
+            if (existente.getSenha() == null || existente.getSenha().isEmpty()) {
+                // Atualiza o esqueleto com os dados reais que digitou no app
+                existente.setNome(novoCidadao.getNome());
+                existente.setSenha(novoCidadao.getSenha());
+
+                // MANTÉM O PERFIL SUPER_ADMIN QUE FOI DADO NO PAINEL WEB
+                repository.save(existente);
+                return ResponseEntity.ok(existente);
+            } else {
+                // Se já tem senha, é porque a conta já está em uso normal
+                return ResponseEntity.badRequest().body("Número já cadastrado.");
+            }
         }
 
-        Cidadao salvo = repository.save(cidadao);
-        return ResponseEntity.ok(salvo);
+        //  SE NÃO EXISTE NA LISTA VIP, É UM CIDADÃO COMUM
+        novoCidadao.setPerfil("CIDADÃO"); // Trava de segurança
+        repository.save(novoCidadao);
+        return ResponseEntity.ok(novoCidadao);
     }
 
     @PostMapping("/login")
@@ -287,6 +304,44 @@ public class CidadaoController {
             return ResponseEntity.status(401).body("Código expirado.");
         }
 
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/admin-criar")
+    public ResponseEntity<?> criarContaDiretaPeloAdmin(@RequestBody Cidadao novoCidadao) {
+
+        // 1. Verifica se o número já existe nesta cidade
+        var existente = repository.findByTelefoneAndCidade(novoCidadao.getTelefone(), novoCidadao.getCidade());
+        if (existente.isPresent()) {
+            return ResponseEntity.badRequest().body("Este número já está cadastrado nesta cidade.");
+        }
+
+        // 2. Se o Admin não escolheu um perfil, vira Cidadão padrão
+        if (novoCidadao.getPerfil() == null || novoCidadao.getPerfil().isEmpty()) {
+            novoCidadao.setPerfil("CIDADÃO");
+        }
+
+        // 3. Salva diretamente no banco sem precisar de código SMS!
+        repository.save(novoCidadao);
+
+        return ResponseEntity.ok(novoCidadao);
+    }
+
+    @PostMapping("/admin-pre-aprovar")
+    public ResponseEntity<?> preAprovarNumero(@RequestBody Cidadao vip) {
+        var existente = repository.findByTelefoneAndCidade(vip.getTelefone(), vip.getCidade());
+        if (existente.isPresent()) {
+            return ResponseEntity.badRequest().body("Este número já tem uma conta ou já está pré-aprovado.");
+        }
+
+        // Cria o esqueleto (nome e senha ficam vazios/nulos)
+        Cidadao novoVip = new Cidadao();
+        novoVip.setTelefone(vip.getTelefone());
+        novoVip.setCidade(vip.getCidade());
+        novoVip.setPerfil(vip.getPerfil());
+        novoVip.setSetorAtuacao(vip.getSetorAtuacao());
+
+        repository.save(novoVip);
         return ResponseEntity.ok().build();
     }
 }
