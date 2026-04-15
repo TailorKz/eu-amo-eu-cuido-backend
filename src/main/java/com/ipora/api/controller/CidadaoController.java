@@ -18,6 +18,9 @@ public class CidadaoController {
     @Autowired
     private com.ipora.api.service.SmsService smsService;
 
+    @Autowired
+    private com.ipora.api.repository.SolicitacaoRepository solicitacaoRepository;
+
     // MÉTODO PARA GERAR O CÓDIGO ALEATÓRIO (Ex: 4589)
     private String gerarCodigoVerificacao() {
         return String.format("%04d", new java.util.Random().nextInt(10000));
@@ -46,6 +49,10 @@ public class CidadaoController {
         if (existenteOpt.isPresent()) {
             Cidadao existente = existenteOpt.get();
 
+            if (existente.getBloqueado() != null && existente.getBloqueado()) {
+                return ResponseEntity.status(403).body("Acesso bloqueado pela administração.");
+            }
+
             if (existente.getSenha() == null || existente.getSenha().isEmpty()) {
                 // Atualiza o esqueleto com os dados reais que digitou no app
                 existente.setNome(novoCidadao.getNome());
@@ -55,7 +62,7 @@ public class CidadaoController {
                 repository.save(existente);
                 return ResponseEntity.ok(existente);
             } else {
-                // Se já tem senha, é porque a conta já está em uso normal
+                // Se já tem senha, a conta já está em uso normal
                 return ResponseEntity.badRequest().body("Número já cadastrado.");
             }
         }
@@ -73,6 +80,11 @@ public class CidadaoController {
 
         if (cidadaoOpt.isPresent()) {
             Cidadao cidadao = cidadaoOpt.get();
+
+            if (cidadao.getBloqueado() != null && cidadao.getBloqueado()) {
+                return ResponseEntity.status(403).body(null); // 403 = Proibido
+            }
+
             if (cidadao.getSenha().equals(dadosLogin.getSenha())) {
                 return ResponseEntity.ok(cidadao);
             }
@@ -247,6 +259,11 @@ public class CidadaoController {
         }
 
         Cidadao cidadao = cidadaoOpt.get();
+
+        if (cidadao.getBloqueado() != null && cidadao.getBloqueado()) {
+            return ResponseEntity.status(403).body("Acesso bloqueado pela administração.");
+        }
+
         String codigo = gerarCodigoVerificacao();
 
         cidadao.setCodigoVerificacao(codigo);
@@ -343,5 +360,70 @@ public class CidadaoController {
 
         repository.save(novoVip);
         return ResponseEntity.ok().build();
+    }
+
+    //  ROTA PARA BANIR/DESBANIR USUÁRIO
+    @PutMapping("/{id}/bloquear")
+    public ResponseEntity<?> alternarBloqueioUsuario(@PathVariable Long id, @RequestParam boolean bloquear) {
+        var cidadaoOpt = repository.findById(id);
+        if (cidadaoOpt.isPresent()) {
+            Cidadao cidadao = cidadaoOpt.get();
+            cidadao.setBloqueado(bloquear);
+
+            if (bloquear) {
+                // Opcional: Limpa o token de notificação para ele não receber mais nada
+                cidadao.setPushToken(null);
+            }
+
+            repository.save(cidadao);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Exclusão direta pelo Painel Web (Super Admin) sem pedir SMS
+    @DeleteMapping("/admin-excluir/{id}")
+    public ResponseEntity<?> excluirContaPeloAdmin(@PathVariable Long id) {
+        var cidadaoOpt = repository.findById(id);
+        if (cidadaoOpt.isPresent()) {
+            Cidadao cidadao = cidadaoOpt.get();
+
+            // 1. PRIMEIRO APAGA TODOS OS REPORTOS QUE ESTA PESSOA FEZ (Para não dar erro de chave estrangeira)
+            // Se você tiver um método no repositório como deleteByCidadao(cidadao), use-o.
+            // Caso contrário, você precisa garantir que a sua Entidade Cidadao tem cascade = CascadeType.ALL na lista de solicitações.
+
+            // 2. DEPOIS APAGA O CIDADÃO
+            repository.delete(cidadao);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    // Promover um cidadão já existente a um cargo (Usado no "Adicionar Membro")
+    @PutMapping("/promover-por-telefone")
+    public ResponseEntity<?> promoverPorTelefone(
+            @RequestParam String telefone,
+            @RequestParam String cidade,
+            @RequestParam String perfil,
+            @RequestParam String setorAtuacao) {
+
+        var cidadaoOpt = repository.findByTelefoneAndCidade(telefone, cidade);
+
+        if (cidadaoOpt.isPresent()) {
+            Cidadao cidadao = cidadaoOpt.get();
+
+            // Verifica se está banido
+            if (cidadao.getBloqueado() != null && cidadao.getBloqueado()) {
+                return ResponseEntity.status(403).body("Este utilizador está banido.");
+            }
+
+            cidadao.setPerfil(perfil);
+            cidadao.setSetorAtuacao(setorAtuacao);
+            repository.save(cidadao);
+            return ResponseEntity.ok(cidadao);
+        }
+
+        // Retorna erro se o cidadão não existir na base de dados
+        return ResponseEntity.status(404).body("Utilizador não encontrado.");
     }
 }

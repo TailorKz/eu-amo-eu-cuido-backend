@@ -183,4 +183,13 @@ public class SolicitacaoController {
 
         return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(cidade, statusPermitidos));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletarSolicitacao(@PathVariable Long id) {
+        if (solicitacaoRepository.existsById(id)) {
+            solicitacaoRepository.deleteById(id);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

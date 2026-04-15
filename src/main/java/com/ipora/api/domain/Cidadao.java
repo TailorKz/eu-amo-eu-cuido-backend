@@ -48,5 +48,10 @@ public class Cidadao {
 
     // Token para enviar notificações Push para o telemóvel
     private String pushToken;
+
+    private Boolean bloqueado = false;
+
+    public Boolean getBloqueado() { return bloqueado; }
+    public void setBloqueado(Boolean bloqueado) { this.bloqueado = bloqueado; }
 }
 
