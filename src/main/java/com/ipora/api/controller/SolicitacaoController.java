@@ -30,6 +30,9 @@ public class SolicitacaoController {
     @Value("${aws.region}")
     private String region;
 
+    @Autowired
+    private S3Client s3Client;
+
     private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
         final int RAIO_TERRA = 6371; // Raio da Terra em Km
 
@@ -87,14 +90,9 @@ public class SolicitacaoController {
                 }
             }
 
-            // 2. UPLOAD DA IMAGEM PARA A AWS S3
-            S3Client s3 = S3Client.builder()
-                    .region(software.amazon.awssdk.regions.Region.of(region))
-                    .build();
-
             String nomeArquivo = UUID.randomUUID().toString() + "_" + imagem.getOriginalFilename();
-
-            s3.putObject(PutObjectRequest.builder()
+            // UPLOAD DA IMAGEM PARA A AWS S3
+            s3Client.putObject(PutObjectRequest.builder()
                             .bucket(bucketName)
                             .key(nomeArquivo)
                             .contentType(imagem.getContentType())
@@ -169,19 +167,19 @@ public class SolicitacaoController {
             if (resposta != null) s.setResposta(resposta);
 
             if (imagemResolvida != null && !imagemResolvida.isEmpty()) {
-                S3Client s3 = S3Client.builder()
-                        .region(software.amazon.awssdk.regions.Region.of(region))
-                        .build();
 
+                // Gera o nome do arquivo
                 String nomeArquivo = UUID.randomUUID().toString() + "_resolvido_" + imagemResolvida.getOriginalFilename();
 
-                s3.putObject(PutObjectRequest.builder()
+                // Faz o upload reutilizando o s3Client instanciado no boot (Muito mais rápido!)
+                s3Client.putObject(PutObjectRequest.builder()
                                 .bucket(bucketName)
                                 .key(nomeArquivo)
                                 .contentType(imagemResolvida.getContentType())
                                 .build(),
                         software.amazon.awssdk.core.sync.RequestBody.fromBytes(imagemResolvida.getBytes()));
 
+                // Salva a URL no banco
                 String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
                 s.setUrlImagemResolvida(urlNuvem);
             }

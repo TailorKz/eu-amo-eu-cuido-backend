@@ -21,7 +21,7 @@ public class ConfiguracaoController {
     private com.ipora.api.repository.CidadaoRepository cidadaoRepository;
 
     @GetMapping
-    // 🔴 NOVO: Exige a cidade para retornar a imagem de fundo correta e o popup certo
+    // exige a cidade para retornar a imagem de fundo correta e o popup certo
     public ResponseEntity<ConfiguracaoPrefeitura> obterConfiguracao(@RequestParam String cidade) {
         Optional<ConfiguracaoPrefeitura> configOpt = repository.findByCidade(cidade);
 
@@ -40,7 +40,6 @@ public class ConfiguracaoController {
     }
 
     @PutMapping
-    // 🔴 NOVO: Exige a cidade para saber qual configuração o Prefeito está tentando atualizar
     public ResponseEntity<ConfiguracaoPrefeitura> atualizarConfiguracao(
             @RequestParam String cidade,
             @RequestBody ConfiguracaoPrefeitura dadosAtualizados) {

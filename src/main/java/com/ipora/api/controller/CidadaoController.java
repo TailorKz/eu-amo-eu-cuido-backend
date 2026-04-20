@@ -1,6 +1,7 @@
 package com.ipora.api.controller;
 
 import com.ipora.api.domain.Cidadao;
+import com.ipora.api.domain.CidadaoResponseDTO;
 import com.ipora.api.repository.CidadaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -21,10 +22,13 @@ public class CidadaoController {
     @Autowired
     private com.ipora.api.repository.SolicitacaoRepository solicitacaoRepository;
 
-    // MÉTODO PARA GERAR O CÓDIGO ALEATÓRIO (Ex: 4589)
+    // MÉTODO PARA GERAR O CÓDIGO ALEATÓRIO
     private String gerarCodigoVerificacao() {
         return String.format("%04d", new java.util.Random().nextInt(10000));
     }
+
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     //  ROTA NOVA: Gera OTP para Cadastro via SMS
     @PostMapping("/enviar-otp-cadastro")
@@ -56,7 +60,7 @@ public class CidadaoController {
             if (existente.getSenha() == null || existente.getSenha().isEmpty()) {
                 // Atualiza o esqueleto com os dados reais que digitou no app
                 existente.setNome(novoCidadao.getNome());
-                existente.setSenha(novoCidadao.getSenha());
+                existente.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
 
                 // MANTÉM O PERFIL SUPER_ADMIN QUE FOI DADO NO PAINEL WEB
                 repository.save(existente);
@@ -69,24 +73,28 @@ public class CidadaoController {
 
         //  SE NÃO EXISTE NA LISTA VIP, É UM CIDADÃO COMUM
         novoCidadao.setPerfil("CIDADÃO"); // Trava de segurança
+        novoCidadao.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
         repository.save(novoCidadao);
         return ResponseEntity.ok(novoCidadao);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<Cidadao> login(@RequestBody Cidadao dadosLogin) {
-        // Busca pelo Telefone + Cidade que vieram do aplicativo
+    public ResponseEntity<CidadaoResponseDTO> login(@RequestBody Cidadao dadosLogin) {
+
         var cidadaoOpt = repository.findByTelefoneAndCidade(dadosLogin.getTelefone(), dadosLogin.getCidade());
 
         if (cidadaoOpt.isPresent()) {
             Cidadao cidadao = cidadaoOpt.get();
 
             if (cidadao.getBloqueado() != null && cidadao.getBloqueado()) {
-                return ResponseEntity.status(403).body(null); // 403 = Proibido
+                return ResponseEntity.status(403).body(null);
             }
 
-            if (cidadao.getSenha().equals(dadosLogin.getSenha())) {
-                return ResponseEntity.ok(cidadao);
+            if (passwordEncoder.matches(dadosLogin.getSenha(), cidadao.getSenha())) {
+
+                CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(cidadao);
+
+                return ResponseEntity.ok(usuarioSeguro);
             }
         }
         return ResponseEntity.status(401).build();
@@ -337,8 +345,8 @@ public class CidadaoController {
         if (novoCidadao.getPerfil() == null || novoCidadao.getPerfil().isEmpty()) {
             novoCidadao.setPerfil("CIDADÃO");
         }
-
-        // 3. Salva diretamente no banco sem precisar de código SMS!
+        novoCidadao.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
+        // Salva diretamente no banco sem precisar de código SMS!
         repository.save(novoCidadao);
 
         return ResponseEntity.ok(novoCidadao);
