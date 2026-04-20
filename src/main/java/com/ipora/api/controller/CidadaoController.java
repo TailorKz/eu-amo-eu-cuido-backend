@@ -30,6 +30,9 @@ public class CidadaoController {
     @Autowired
     private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private com.ipora.api.service.TokenService tokenService;
+
     //  ROTA NOVA: Gera OTP para Cadastro via SMS
     @PostMapping("/enviar-otp-cadastro")
     public ResponseEntity<java.util.Map<String, String>> enviarOtpCadastro(@RequestParam String telefone) {
@@ -92,7 +95,14 @@ public class CidadaoController {
 
             if (passwordEncoder.matches(dadosLogin.getSenha(), cidadao.getSenha())) {
 
+                // Gera o Token JWT
+                String tokenGerado = tokenService.gerarToken(cidadao);
+
+                // Cria o DTO Seguro
                 CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(cidadao);
+
+                // Coloca o token dentro do DTO para o Front-end guardar
+                usuarioSeguro.setToken(tokenGerado);
 
                 return ResponseEntity.ok(usuarioSeguro);
             }
@@ -379,7 +389,6 @@ public class CidadaoController {
             cidadao.setBloqueado(bloquear);
 
             if (bloquear) {
-                // Opcional: Limpa o token de notificação para ele não receber mais nada
                 cidadao.setPushToken(null);
             }
 
@@ -396,11 +405,9 @@ public class CidadaoController {
         if (cidadaoOpt.isPresent()) {
             Cidadao cidadao = cidadaoOpt.get();
 
-            // 1. PRIMEIRO APAGA TODOS OS REPORTOS QUE ESTA PESSOA FEZ (Para não dar erro de chave estrangeira)
+            // APAGA TODOS OS REPORTOS QUE ESTA PESSOA FEZ (Para não dar erro de chave estrangeira)
             // Se você tiver um método no repositório como deleteByCidadao(cidadao), use-o.
-            // Caso contrário, você precisa garantir que a sua Entidade Cidadao tem cascade = CascadeType.ALL na lista de solicitações.
-
-            // 2. DEPOIS APAGA O CIDADÃO
+            // DEPOIS APAGA O CIDADÃO
             repository.delete(cidadao);
             return ResponseEntity.ok().build();
         }
@@ -433,5 +440,25 @@ public class CidadaoController {
 
         // Retorna erro se o cidadão não existir na base de dados
         return ResponseEntity.status(404).body("Utilizador não encontrado.");
+    }
+    //  ROTA TEMPORÁRIA: apenas uma vez para encriptar as senhas antigas e depois apagar
+    @GetMapping("/migrar-senhas")
+    public ResponseEntity<String> migrarSenhasAntigas() {
+        // Busca todos os cidadãos do banco
+        List<Cidadao> todos = repository.findAll();
+        int contador = 0;
+
+        for (Cidadao c : todos) {
+            // Se a pessoa tem senha E a senha NÃO começa com o padrão do BCrypt ("$2a$")
+            if (c.getSenha() != null && !c.getSenha().startsWith("$2a$")) {
+
+                // Encripta a senha antiga
+                c.setSenha(passwordEncoder.encode(c.getSenha()));
+                repository.save(c);
+                contador++;
+            }
+        }
+
+        return ResponseEntity.ok("Sucesso! Foram encriptadas " + contador + " contas antigas.");
     }
 }

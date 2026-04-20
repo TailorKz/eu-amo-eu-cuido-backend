@@ -16,6 +16,7 @@ public class CidadaoResponseDTO {
     private String setorAtuacao;
     private String cidade;
     private Boolean bloqueado;
+    private String token;
 
     // Construtor que converte a Entidade real para DTO seguro
     public CidadaoResponseDTO(Cidadao cidadao) {
