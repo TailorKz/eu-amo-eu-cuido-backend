@@ -21,6 +21,8 @@ public class Solicitacao {
     private String categoria; // Infraestrutura, Iluminação, etc.
 
     private String localizacao; // A rua que o GPS pegou
+    private Double latitude;
+    private Double longitude;
 
     @Column(columnDefinition = "TEXT")
     private String observacao;

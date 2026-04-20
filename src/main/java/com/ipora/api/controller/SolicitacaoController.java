@@ -30,16 +30,64 @@ public class SolicitacaoController {
     @Value("${aws.region}")
     private String region;
 
+    private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
+        final int RAIO_TERRA = 6371; // Raio da Terra em Km
+
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return RAIO_TERRA * c; // Retorna a distância em Quilômetros
+    }
+
     @PostMapping(value = "/nova/{cidadaoId}", consumes = {"multipart/form-data"})
-    public ResponseEntity<Solicitacao> criarSolicitacao(
+    public ResponseEntity<?> criarSolicitacao(
             @PathVariable Long cidadaoId,
             @RequestParam("categoria") String categoria,
             @RequestParam("localizacao") String localizacao,
+            @RequestParam(value = "latitude", required = false) Double latitude,
+            @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "observacao", required = false) String observacao,
             @RequestParam("imagem") MultipartFile imagem) {
 
         try {
-            // 🔴 CORREÇÃO AQUI: Dizemos ao Java exatamente qual é a Região da Amazon!
+            var cidadaoOpt = cidadaoRepository.findById(cidadaoId);
+            if(cidadaoOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body("Cidadão não encontrado.");
+            }
+
+            com.ipora.api.domain.Cidadao cidadao = cidadaoOpt.get();
+            String nomeCidade = cidadao.getCidade();
+
+            // 1. LÓGICA DE GEOFENCING (Cerca Virtual)
+            if (latitude != null && longitude != null) {
+                // Coordenadas padrão (Iporã do Oeste)
+                double centroLat = -26.9877;
+                double centroLon = -53.5350;
+
+                // Adapte para as outras cidades da sua lista
+                if(nomeCidade.equalsIgnoreCase("São Miguel do Oeste")){
+                    centroLat = -26.7262;
+                    centroLon = -53.5186;
+                } else if(nomeCidade.equalsIgnoreCase("Itapiranga")){
+                    centroLat = -27.1685;
+                    centroLon = -53.7126;
+                }
+
+                double distancia = calcularDistancia(latitude, longitude, centroLat, centroLon);
+
+                // Se a pessoa estiver a mais de 25km do centro da cidade, barra!
+                if (distancia > 30.0) {
+                    return ResponseEntity.status(403).body("Erro: Adicione manualmente, sua localização atual está fora dos limites de " + nomeCidade);
+                }
+            }
+
+            // 2. UPLOAD DA IMAGEM PARA A AWS S3
             S3Client s3 = S3Client.builder()
                     .region(software.amazon.awssdk.regions.Region.of(region))
                     .build();
@@ -55,38 +103,36 @@ public class SolicitacaoController {
 
             String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
 
+            // 3. SALVAR OS DADOS NO BANCO DE DADOS
             Solicitacao novaSolicitacao = new Solicitacao();
             novaSolicitacao.setCategoria(categoria);
             novaSolicitacao.setLocalizacao(localizacao);
+            novaSolicitacao.setLatitude(latitude);   // Salva a Latitude
+            novaSolicitacao.setLongitude(longitude); // Salva a Longitude
             novaSolicitacao.setObservacao(observacao);
             novaSolicitacao.setStatus("PENDENTE");
             novaSolicitacao.setUrlImagem(urlNuvem);
+            novaSolicitacao.setCidadao(cidadao);
 
-            var cidadaoOpt = cidadaoRepository.findById(cidadaoId);
-            if(cidadaoOpt.isPresent()){
-                com.ipora.api.domain.Cidadao cidadao = cidadaoOpt.get();
-                novaSolicitacao.setCidadao(cidadao);
+            // 4. GERAÇÃO INTELIGENTE DO PROTOCOLO
+            String sigla = nomeCidade.length() >= 3
+                    ? nomeCidade.substring(0, 3).toUpperCase().replace(" ", "")
+                    : nomeCidade.toUpperCase();
 
-                String nomeCidade = cidadao.getCidade();
-                String sigla = nomeCidade.length() >= 3
-                        ? nomeCidade.substring(0, 3).toUpperCase().replace(" ", "")
-                        : nomeCidade.toUpperCase();
+            int anoAtual = java.time.LocalDate.now().getYear();
+            java.time.LocalDateTime inicioAno = java.time.LocalDateTime.of(anoAtual, 1, 1, 0, 0);
+            java.time.LocalDateTime fimAno = java.time.LocalDateTime.of(anoAtual, 12, 31, 23, 59, 59);
 
-                int anoAtual = java.time.LocalDate.now().getYear();
-                java.time.LocalDateTime inicioAno = java.time.LocalDateTime.of(anoAtual, 1, 1, 0, 0);
-                java.time.LocalDateTime fimAno = java.time.LocalDateTime.of(anoAtual, 12, 31, 23, 59, 59);
+            Long contagem = solicitacaoRepository.countByCidadaoCidadeAndDataCriacaoBetween(nomeCidade, inicioAno, fimAno);
+            String protocoloGerado = String.format("%s-%d-%04d", sigla, anoAtual, contagem + 1);
 
-                Long contagem = solicitacaoRepository.countByCidadaoCidadeAndDataCriacaoBetween(nomeCidade, inicioAno, fimAno);
-                String protocoloGerado = String.format("%s-%d-%04d", sigla, anoAtual, contagem + 1);
-
-                novaSolicitacao.setProtocolo(protocoloGerado);
-            }
+            novaSolicitacao.setProtocolo(protocoloGerado);
 
             return ResponseEntity.ok(solicitacaoRepository.save(novaSolicitacao));
 
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError().build(); // <--- É este erro que estava a rebentar!
+            return ResponseEntity.internalServerError().build();
         }
     }
 
@@ -123,7 +169,6 @@ public class SolicitacaoController {
             if (resposta != null) s.setResposta(resposta);
 
             if (imagemResolvida != null && !imagemResolvida.isEmpty()) {
-                // 🔴 CORREÇÃO AQUI TAMBÉM (Força a Região)
                 S3Client s3 = S3Client.builder()
                         .region(software.amazon.awssdk.regions.Region.of(region))
                         .build();
@@ -174,4 +219,6 @@ public class SolicitacaoController {
         }
         return ResponseEntity.notFound().build();
     }
+
+
 }
