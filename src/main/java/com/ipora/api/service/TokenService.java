@@ -23,10 +23,10 @@ public class TokenService {
             Algorithm algoritmo = Algorithm.HMAC256(secret);
             return JWT.create()
                     .withIssuer("eu-amo-eu-cuido-api")
-                    .withSubject(cidadao.getTelefone()) // Identificador único do usuário
+                    .withSubject(cidadao.getTelefone())
                     .withClaim("id", cidadao.getId())
-                    .withClaim("perfil", cidadao.getPerfil())
-                    .withClaim("cidade", cidadao.getCidade())
+                    .withClaim("perfil", cidadao.getPerfil() != null ? cidadao.getPerfil() : "CIDADAO")
+                    .withClaim("cidade", cidadao.getCidade() != null ? cidadao.getCidade() : "")
                     .withExpiresAt(dataExpiracao())
                     .sign(algoritmo);
         } catch (JWTCreationException exception) {
