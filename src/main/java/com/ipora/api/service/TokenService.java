@@ -34,8 +34,20 @@ public class TokenService {
         }
     }
 
-    // O token expira em 30 dias (ideal para apps mobile para não deslogar a toda a hora)
     private Instant dataExpiracao() {
-        return LocalDateTime.now().plusDays(30).toInstant(ZoneOffset.of("-03:00"));
+        return LocalDateTime.now().plusDays(3650).toInstant(ZoneOffset.of("-03:00"));
+    }
+
+    public String getSubject(String tokenJWT) {
+        try {
+            com.auth0.jwt.algorithms.Algorithm algoritmo = com.auth0.jwt.algorithms.Algorithm.HMAC256(secret);
+            return com.auth0.jwt.JWT.require(algoritmo)
+                    .withIssuer("eu-amo-eu-cuido-api")
+                    .build()
+                    .verify(tokenJWT)
+                    .getSubject(); // Devolve o número de telemóvel que guardámos no token
+        } catch (com.auth0.jwt.exceptions.JWTVerificationException exception) {
+            throw new RuntimeException("Token JWT inválido ou expirado!");
+        }
     }
 }
