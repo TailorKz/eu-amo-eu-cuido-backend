@@ -26,11 +26,14 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(org.springframework.security.config.Customizer.withDefaults())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, "/api/cidadaos/login").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/cidadaos").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/cidadaos/migrar-senhas").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/login").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cidadaos/migrar-senhas").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);

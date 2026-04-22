@@ -85,7 +85,7 @@ public class SolicitacaoController {
                 double distancia = calcularDistancia(latitude, longitude, centroLat, centroLon);
 
                 // Se a pessoa estiver a mais de 25km do centro da cidade, barra!
-                if (distancia > 30.0) {
+                if (distancia > 25.0) {
                     return ResponseEntity.status(403).body("Erro: Adicione manualmente, sua localização atual está fora dos limites de " + nomeCidade);
                 }
             }
