@@ -18,4 +18,9 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
 
     // Conta quantas solicitações uma cidade específica teve dentro de um período (ano)
     Long countByCidadaoCidadeAndDataCriacaoBetween(String cidade, java.time.LocalDateTime inicio, java.time.LocalDateTime fim);
+
+    // CONSULTAS PARA MÉTRICAS
+    long countByCidadaoCidadeAndStatus(String cidade, String status);
+    long countByCidadaoCidadeAndDataCriacaoAfter(String cidade, java.time.LocalDateTime data);
+    long countByCidadaoCidade(String cidade);
 }

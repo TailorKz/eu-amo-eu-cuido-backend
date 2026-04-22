@@ -209,6 +209,22 @@ public class SolicitacaoController {
         return ResponseEntity.ok(solicitacaoRepository.findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(cidade, statusPermitidos));
     }
 
+    @GetMapping("/metricas")
+    public ResponseEntity<java.util.Map<String, Long>> obterMetricasParaApp(@RequestParam String cidade) {
+        java.util.Map<String, Long> metricas = new java.util.HashMap<>();
+
+        // Pega o início do dia de hoje
+        java.time.LocalDateTime inicioDoDia = java.time.LocalDateTime.now().with(java.time.LocalTime.MIN);
+
+        metricas.put("abertasHoje", solicitacaoRepository.countByCidadaoCidadeAndDataCriacaoAfter(cidade, inicioDoDia));
+        metricas.put("pendentes", solicitacaoRepository.countByCidadaoCidadeAndStatus(cidade, "PENDENTE"));
+        metricas.put("emAndamento", solicitacaoRepository.countByCidadaoCidadeAndStatus(cidade, "EM_ANDAMENTO"));
+        metricas.put("resolvidas", solicitacaoRepository.countByCidadaoCidadeAndStatus(cidade, "RESOLVIDO"));
+        metricas.put("total", solicitacaoRepository.countByCidadaoCidade(cidade));
+
+        return ResponseEntity.ok(metricas);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletarSolicitacao(@PathVariable Long id) {
         if (solicitacaoRepository.existsById(id)) {

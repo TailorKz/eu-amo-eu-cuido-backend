@@ -50,4 +50,17 @@ public class TokenService {
             throw new RuntimeException("Token JWT inválido ou expirado!");
         }
     }
+
+    public String getPerfil(String tokenJWT) {
+        try {
+            com.auth0.jwt.algorithms.Algorithm algoritmo = com.auth0.jwt.algorithms.Algorithm.HMAC256(secret);
+            return com.auth0.jwt.JWT.require(algoritmo)
+                    .withIssuer("eu-amo-eu-cuido-api")
+                    .build()
+                    .verify(tokenJWT)
+                    .getClaim("perfil").asString();
+        } catch (com.auth0.jwt.exceptions.JWTVerificationException exception) {
+            return "CIDADAO"; // Em caso de erro ou token inválido, assume o menor privilégio
+        }
+    }
 }

@@ -33,6 +33,15 @@ public class CidadaoController {
     @Autowired
     private com.ipora.api.service.TokenService tokenService;
 
+    private boolean isSuperAdmin(jakarta.servlet.http.HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.replace("Bearer ", "");
+            return "SUPER_ADMIN".equals(tokenService.getPerfil(token));
+        }
+        return false;
+    }
+
     //  ROTA NOVA: Gera OTP para Cadastro via SMS
     @PostMapping("/enviar-otp-cadastro")
     public ResponseEntity<java.util.Map<String, String>> enviarOtpCadastro(@RequestParam String telefone) {
@@ -118,12 +127,16 @@ public class CidadaoController {
 
     // Rota para o Painel Web (Super Admin) - Promover/Alterar o cargo de um usuário
     @PutMapping("/{id}/perfil")
-    public ResponseEntity<Cidadao> atualizarPerfil(
+    public ResponseEntity<?> atualizarPerfil(
+            jakarta.servlet.http.HttpServletRequest request,
             @PathVariable Long id,
             @RequestBody Cidadao dadosAtualizados) {
 
-        var cidadaoOpt = repository.findById(id);
+        if (!isSuperAdmin(request)) {
+            return ResponseEntity.status(403).body("Acesso negado. Apenas o SUPER ADMIN pode alterar perfis.");
+        }
 
+        var cidadaoOpt = repository.findById(id);
         if(cidadaoOpt.isPresent()){
             Cidadao cidadao = cidadaoOpt.get();
             cidadao.setPerfil(dadosAtualizados.getPerfil());
@@ -342,31 +355,54 @@ public class CidadaoController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/admin-criar")
-    public ResponseEntity<?> criarContaDiretaPeloAdmin(@RequestBody Cidadao novoCidadao) {
+    @DeleteMapping("/admin-excluir/{id}")
+    public ResponseEntity<?> excluirContaPeloAdmin(
+            jakarta.servlet.http.HttpServletRequest request,
+            @PathVariable Long id) {
 
-        // 1. Verifica se o número já existe nesta cidade
+        if (!isSuperAdmin(request)) {
+            return ResponseEntity.status(403).body("Acesso negado.");
+        }
+
+        var cidadaoOpt = repository.findById(id);
+        if (cidadaoOpt.isPresent()) {
+            Cidadao cidadao = cidadaoOpt.get();
+            repository.delete(cidadao);
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/admin-criar")
+    public ResponseEntity<?> criarContaDiretaPeloAdmin(
+            jakarta.servlet.http.HttpServletRequest request,
+            @RequestBody Cidadao novoCidadao) {
+
+        if (!isSuperAdmin(request)) {
+            return ResponseEntity.status(403).body("Acesso negado. Apenas o SUPER ADMIN pode criar contas administrativas.");
+        }
+
         var existente = repository.findByTelefoneAndCidade(novoCidadao.getTelefone(), novoCidadao.getCidade());
         if (existente.isPresent()) {
             return ResponseEntity.badRequest().body("Este número já está cadastrado nesta cidade.");
         }
 
-        // 2. Se o Admin não escolheu um perfil, vira Cidadão padrão
         if (novoCidadao.getPerfil() == null || novoCidadao.getPerfil().isEmpty()) {
             novoCidadao.setPerfil("CIDADÃO");
         }
         novoCidadao.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
-        // Salva diretamente no banco sem precisar de código SMS!
         repository.save(novoCidadao);
 
         return ResponseEntity.ok(novoCidadao);
     }
 
     @PostMapping("/admin-pre-aprovar")
-    public ResponseEntity<?> preAprovarNumero(@RequestBody Cidadao vip) {
-        var existente = repository.findByTelefoneAndCidade(vip.getTelefone(), vip.getCidade());
-        if (existente.isPresent()) {
-            return ResponseEntity.badRequest().body("Este número já tem uma conta ou já está pré-aprovado.");
+    public ResponseEntity<?> preAprovarNumero(
+            jakarta.servlet.http.HttpServletRequest request,
+            @RequestBody Cidadao vip) {
+
+        if (!isSuperAdmin(request)) {
+            return ResponseEntity.status(403).body("Acesso negado.");
         }
 
         // Cria o esqueleto (nome e senha ficam vazios/nulos)
@@ -382,16 +418,20 @@ public class CidadaoController {
 
     //  ROTA PARA BANIR/DESBANIR USUÁRIO
     @PutMapping("/{id}/bloquear")
-    public ResponseEntity<?> alternarBloqueioUsuario(@PathVariable Long id, @RequestParam boolean bloquear) {
+    public ResponseEntity<?> alternarBloqueioUsuario(
+            jakarta.servlet.http.HttpServletRequest request,
+            @PathVariable Long id,
+            @RequestParam boolean bloquear) {
+
+        if (!isSuperAdmin(request)) {
+            return ResponseEntity.status(403).body("Acesso negado.");
+        }
+
         var cidadaoOpt = repository.findById(id);
         if (cidadaoOpt.isPresent()) {
             Cidadao cidadao = cidadaoOpt.get();
             cidadao.setBloqueado(bloquear);
-
-            if (bloquear) {
-                cidadao.setPushToken(null);
-            }
-
+            if (bloquear) cidadao.setPushToken(null);
             repository.save(cidadao);
             return ResponseEntity.ok().build();
         }
@@ -417,10 +457,15 @@ public class CidadaoController {
     // Promover um cidadão já existente a um cargo (Usado no "Adicionar Membro")
     @PutMapping("/promover-por-telefone")
     public ResponseEntity<?> promoverPorTelefone(
+            jakarta.servlet.http.HttpServletRequest request,
             @RequestParam String telefone,
             @RequestParam String cidade,
             @RequestParam String perfil,
             @RequestParam String setorAtuacao) {
+
+        if (!isSuperAdmin(request)) {
+            return ResponseEntity.status(403).body("Acesso negado. Apenas o SUPER ADMIN pode alterar cargos.");
+        }
 
         var cidadaoOpt = repository.findByTelefoneAndCidade(telefone, cidade);
 
