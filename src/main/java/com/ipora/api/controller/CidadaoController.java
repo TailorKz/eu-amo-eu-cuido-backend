@@ -438,22 +438,6 @@ public class CidadaoController {
         return ResponseEntity.notFound().build();
     }
 
-    // Exclusão direta pelo Painel Web (Super Admin) sem pedir SMS
-    @DeleteMapping("/admin-excluir/{id}")
-    public ResponseEntity<?> excluirContaPeloAdmin(@PathVariable Long id) {
-        var cidadaoOpt = repository.findById(id);
-        if (cidadaoOpt.isPresent()) {
-            Cidadao cidadao = cidadaoOpt.get();
-
-            // APAGA TODOS OS REPORTOS QUE ESTA PESSOA FEZ (Para não dar erro de chave estrangeira)
-            // Se você tiver um método no repositório como deleteByCidadao(cidadao), use-o.
-            // DEPOIS APAGA O CIDADÃO
-            repository.delete(cidadao);
-            return ResponseEntity.ok().build();
-        }
-        return ResponseEntity.notFound().build();
-    }
-
     // Promover um cidadão já existente a um cargo (Usado no "Adicionar Membro")
     @PutMapping("/promover-por-telefone")
     public ResponseEntity<?> promoverPorTelefone(
