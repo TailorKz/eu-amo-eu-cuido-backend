@@ -210,19 +210,75 @@ public class SolicitacaoController {
     }
 
     @GetMapping("/metricas")
-    public ResponseEntity<java.util.Map<String, Long>> obterMetricasParaApp(@RequestParam String cidade) {
+    public ResponseEntity<java.util.Map<String, Long>> obterMetricasParaApp(
+            @RequestParam String cidade,
+            @RequestParam(defaultValue = "TUDO") String periodo) {
+
+        java.time.LocalDateTime dataFiltro = null;
+        java.time.LocalDateTime agora = java.time.LocalDateTime.now();
+
+        switch (periodo) {
+            case "HOJE": dataFiltro = agora.with(java.time.LocalTime.MIN); break;
+            case "SEMANA": dataFiltro = agora.minusDays(7); break;
+            case "MES": dataFiltro = agora.minusDays(30); break;
+            case "ANO": dataFiltro = agora.minusDays(365); break;
+        }
+
+        // Puxa a lista baseada no tempo
+        List<Solicitacao> lista;
+        if (dataFiltro != null) {
+            lista = solicitacaoRepository.findByCidadaoCidadeAndDataCriacaoAfterOrderByDataCriacaoDesc(cidade, dataFiltro);
+        } else {
+            lista = solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(cidade);
+        }
+
         java.util.Map<String, Long> metricas = new java.util.HashMap<>();
+        java.time.LocalDateTime inicioHoje = agora.with(java.time.LocalTime.MIN);
 
-        // Pega o início do dia de hoje
-        java.time.LocalDateTime inicioDoDia = java.time.LocalDateTime.now().with(java.time.LocalTime.MIN);
-
-        metricas.put("abertasHoje", solicitacaoRepository.countByCidadaoCidadeAndDataCriacaoAfter(cidade, inicioDoDia));
-        metricas.put("pendentes", solicitacaoRepository.countByCidadaoCidadeAndStatus(cidade, "PENDENTE"));
-        metricas.put("emAndamento", solicitacaoRepository.countByCidadaoCidadeAndStatus(cidade, "EM_ANDAMENTO"));
-        metricas.put("resolvidas", solicitacaoRepository.countByCidadaoCidadeAndStatus(cidade, "RESOLVIDO"));
-        metricas.put("total", solicitacaoRepository.countByCidadaoCidade(cidade));
+        // Faz as contagens matemáticas ultra-rápidas em memória
+        metricas.put("abertasHoje", lista.stream().filter(s -> s.getDataCriacao().isAfter(inicioHoje)).count());
+        metricas.put("pendentes", lista.stream().filter(s -> "PENDENTE".equals(s.getStatus())).count());
+        metricas.put("emAndamento", lista.stream().filter(s -> "EM_ANDAMENTO".equals(s.getStatus())).count());
+        metricas.put("resolvidas", lista.stream().filter(s -> "RESOLVIDO".equals(s.getStatus())).count());
+        metricas.put("total", (long) lista.size());
 
         return ResponseEntity.ok(metricas);
+    }
+
+    // Rota para a Nova Tela
+    @GetMapping("/metricas/lista")
+    public ResponseEntity<List<Solicitacao>> listarMetricasDetalhe(
+            @RequestParam String cidade,
+            @RequestParam String periodo,
+            @RequestParam String tipo // PENDENTE, EM_ANDAMENTO, RESOLVIDO, ABERTAS_HOJE ou TOTAL
+    ) {
+        java.time.LocalDateTime dataFiltro = null;
+        java.time.LocalDateTime agora = java.time.LocalDateTime.now();
+
+        switch (periodo) {
+            case "HOJE": dataFiltro = agora.with(java.time.LocalTime.MIN); break;
+            case "SEMANA": dataFiltro = agora.minusDays(7); break;
+            case "MES": dataFiltro = agora.minusDays(30); break;
+            case "ANO": dataFiltro = agora.minusDays(365); break;
+        }
+
+        List<Solicitacao> lista;
+        if (dataFiltro != null) {
+            lista = solicitacaoRepository.findByCidadaoCidadeAndDataCriacaoAfterOrderByDataCriacaoDesc(cidade, dataFiltro);
+        } else {
+            lista = solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(cidade);
+        }
+
+        java.util.stream.Stream<Solicitacao> stream = lista.stream();
+
+        if ("ABERTAS_HOJE".equals(tipo)) {
+            java.time.LocalDateTime inicioHoje = agora.with(java.time.LocalTime.MIN);
+            stream = stream.filter(s -> s.getDataCriacao().isAfter(inicioHoje));
+        } else if (!"TOTAL".equals(tipo)) {
+            stream = stream.filter(s -> s.getStatus().equals(tipo));
+        }
+
+        return ResponseEntity.ok(stream.collect(java.util.stream.Collectors.toList()));
     }
 
     @DeleteMapping("/{id}")
