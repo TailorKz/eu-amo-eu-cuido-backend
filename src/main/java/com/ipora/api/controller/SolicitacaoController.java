@@ -33,6 +33,9 @@ public class SolicitacaoController {
     @Autowired
     private S3Client s3Client;
 
+    @Autowired
+    private com.ipora.api.service.ExpoNotificationService expoNotificationService;
+
     private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
         final int RAIO_TERRA = 6371; // Raio da Terra em Km
 
@@ -105,8 +108,8 @@ public class SolicitacaoController {
             Solicitacao novaSolicitacao = new Solicitacao();
             novaSolicitacao.setCategoria(categoria);
             novaSolicitacao.setLocalizacao(localizacao);
-            novaSolicitacao.setLatitude(latitude);   // Salva a Latitude
-            novaSolicitacao.setLongitude(longitude); // Salva a Longitude
+            novaSolicitacao.setLatitude(latitude);
+            novaSolicitacao.setLongitude(longitude);
             novaSolicitacao.setObservacao(observacao);
             novaSolicitacao.setStatus("PENDENTE");
             novaSolicitacao.setUrlImagem(urlNuvem);
@@ -126,7 +129,27 @@ public class SolicitacaoController {
 
             novaSolicitacao.setProtocolo(protocoloGerado);
 
-            return ResponseEntity.ok(solicitacaoRepository.save(novaSolicitacao));
+            Solicitacao solicitacaoSalva = solicitacaoRepository.save(novaSolicitacao);
+
+            if (solicitacaoSalva.getCidadao() != null && solicitacaoSalva.getCategoria() != null) {
+                List<com.ipora.api.domain.Cidadao> equipeSetor = cidadaoRepository.findByCidadeAndSetorAtuacaoAndPerfilIn(
+                        solicitacaoSalva.getCidadao().getCidade(),
+                        solicitacaoSalva.getCategoria(),
+                        java.util.Arrays.asList("GESTOR_SETOR", "FUNCIONARIO")
+                );
+
+                List<String> tokens = equipeSetor.stream()
+                        .map(com.ipora.api.domain.Cidadao::getPushToken)
+                        .collect(java.util.stream.Collectors.toList());
+
+                expoNotificationService.enviarNotificacao(
+                        tokens,
+                        "Nova Solicitação: " + solicitacaoSalva.getCategoria(),
+                        "Um novo problema foi relatado e aguarda análise."
+                );
+            }
+
+            return ResponseEntity.ok(solicitacaoSalva);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -146,7 +169,18 @@ public class SolicitacaoController {
         Solicitacao s = opt.get();
         if (dados.getStatus() != null) s.setStatus(dados.getStatus());
         if (dados.getResposta() != null) s.setResposta(dados.getResposta());
-        return ResponseEntity.ok(solicitacaoRepository.save(s));
+
+        Solicitacao solicitacaoSalva = solicitacaoRepository.save(s);
+
+        if (solicitacaoSalva.getCidadao() != null && solicitacaoSalva.getCidadao().getPushToken() != null) {
+            expoNotificationService.enviarNotificacao(
+                    java.util.Collections.singletonList(solicitacaoSalva.getCidadao().getPushToken()),
+                    "Atualização no seu chamado!",
+                    "Sua solicitação foi atualizada para: " + solicitacaoSalva.getStatus().replace("_", " ")
+            );
+        }
+
+        return ResponseEntity.ok(solicitacaoSalva);
     }
 
     @PutMapping(value = "/{id}/atualizar-com-foto", consumes = {"multipart/form-data"})
@@ -167,11 +201,8 @@ public class SolicitacaoController {
             if (resposta != null) s.setResposta(resposta);
 
             if (imagemResolvida != null && !imagemResolvida.isEmpty()) {
-
-                // Gera o nome do arquivo
                 String nomeArquivo = UUID.randomUUID().toString() + "_resolvido_" + imagemResolvida.getOriginalFilename();
 
-                // Faz o upload reutilizando o s3Client instanciado no boot (Muito mais rápido!)
                 s3Client.putObject(PutObjectRequest.builder()
                                 .bucket(bucketName)
                                 .key(nomeArquivo)
@@ -179,12 +210,22 @@ public class SolicitacaoController {
                                 .build(),
                         software.amazon.awssdk.core.sync.RequestBody.fromBytes(imagemResolvida.getBytes()));
 
-                // Salva a URL no banco
                 String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
                 s.setUrlImagemResolvida(urlNuvem);
             }
 
-            return ResponseEntity.ok(solicitacaoRepository.save(s));
+            Solicitacao solicitacaoSalva = solicitacaoRepository.save(s);
+
+            if (solicitacaoSalva.getCidadao() != null && solicitacaoSalva.getCidadao().getPushToken() != null) {
+                expoNotificationService.enviarNotificacao(
+                        java.util.Collections.singletonList(solicitacaoSalva.getCidadao().getPushToken()),
+                        "Atualização no seu chamado!",
+                        "Sua solicitação foi atualizada para: " + solicitacaoSalva.getStatus().replace("_", " ")
+                );
+            }
+
+            return ResponseEntity.ok(solicitacaoSalva);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
@@ -224,7 +265,6 @@ public class SolicitacaoController {
             case "ANO": dataFiltro = agora.minusDays(365); break;
         }
 
-        // Puxa a lista baseada no tempo
         List<Solicitacao> lista;
         if (dataFiltro != null) {
             lista = solicitacaoRepository.findByCidadaoCidadeAndDataCriacaoAfterOrderByDataCriacaoDesc(cidade, dataFiltro);
@@ -235,7 +275,6 @@ public class SolicitacaoController {
         java.util.Map<String, Long> metricas = new java.util.HashMap<>();
         java.time.LocalDateTime inicioHoje = agora.with(java.time.LocalTime.MIN);
 
-        // Faz as contagens matemáticas ultra-rápidas em memória
         metricas.put("abertasHoje", lista.stream().filter(s -> s.getDataCriacao().isAfter(inicioHoje)).count());
         metricas.put("pendentes", lista.stream().filter(s -> "PENDENTE".equals(s.getStatus())).count());
         metricas.put("emAndamento", lista.stream().filter(s -> "EM_ANDAMENTO".equals(s.getStatus())).count());
@@ -245,12 +284,11 @@ public class SolicitacaoController {
         return ResponseEntity.ok(metricas);
     }
 
-    // Rota para a Nova Tela
     @GetMapping("/metricas/lista")
     public ResponseEntity<List<Solicitacao>> listarMetricasDetalhe(
             @RequestParam String cidade,
             @RequestParam String periodo,
-            @RequestParam String tipo // PENDENTE, EM_ANDAMENTO, RESOLVIDO, ABERTAS_HOJE ou TOTAL
+            @RequestParam String tipo
     ) {
         java.time.LocalDateTime dataFiltro = null;
         java.time.LocalDateTime agora = java.time.LocalDateTime.now();
@@ -289,6 +327,4 @@ public class SolicitacaoController {
         }
         return ResponseEntity.notFound().build();
     }
-
-
 }

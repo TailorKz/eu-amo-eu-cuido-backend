@@ -10,4 +10,6 @@ public interface CidadaoRepository extends JpaRepository<Cidadao, Long> {
 
     // Busca todos os utilizadores de uma cidade específica
     List<Cidadao> findByCidade(String cidade);
+    // Busca a equipa de um setor específico (Gestores e Funcionários)
+    List<Cidadao> findByCidadeAndSetorAtuacaoAndPerfilIn(String cidade, String setorAtuacao, List<String> perfis);
 }
