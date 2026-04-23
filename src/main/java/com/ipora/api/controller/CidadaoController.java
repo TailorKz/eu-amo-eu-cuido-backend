@@ -187,7 +187,7 @@ public class CidadaoController {
             if (cidadao.getExpiracaoCodigo() != null && cidadao.getExpiracaoCodigo().isBefore(java.time.LocalDateTime.now())) {
                 return ResponseEntity.status(401).body("Código expirado.");
             }
-            cidadao.setSenha(novaSenha);
+            cidadao.setSenha(passwordEncoder.encode(novaSenha));
             cidadao.setCodigoVerificacao(null);
             cidadao.setExpiracaoCodigo(null);
             repository.save(cidadao);
@@ -207,7 +207,7 @@ public class CidadaoController {
         }
 
         Cidadao cidadao = cidadaoOpt.get();
-        cidadao.setSenha(novaSenha);
+        cidadao.setSenha(passwordEncoder.encode(novaSenha));
         repository.save(cidadao);
 
         return ResponseEntity.ok("Senha alterada com sucesso.");
@@ -325,7 +325,7 @@ public class CidadaoController {
             return ResponseEntity.status(401).body("Código expirado.");
         }
 
-        cidadao.setSenha(novaSenha);
+        cidadao.setSenha(passwordEncoder.encode(novaSenha));
         cidadao.setCodigoVerificacao(null);
         cidadao.setExpiracaoCodigo(null);
         repository.save(cidadao);
@@ -469,25 +469,5 @@ public class CidadaoController {
 
         // Retorna erro se o cidadão não existir na base de dados
         return ResponseEntity.status(404).body("Utilizador não encontrado.");
-    }
-    //  ROTA TEMPORÁRIA: apenas uma vez para encriptar as senhas antigas e depois apagar
-    @GetMapping("/migrar-senhas")
-    public ResponseEntity<String> migrarSenhasAntigas() {
-        // Busca todos os cidadãos do banco
-        List<Cidadao> todos = repository.findAll();
-        int contador = 0;
-
-        for (Cidadao c : todos) {
-            // Se a pessoa tem senha E a senha NÃO começa com o padrão do BCrypt ("$2a$")
-            if (c.getSenha() != null && !c.getSenha().startsWith("$2a$")) {
-
-                // Encripta a senha antiga
-                c.setSenha(passwordEncoder.encode(c.getSenha()));
-                repository.save(c);
-                contador++;
-            }
-        }
-
-        return ResponseEntity.ok("Sucesso! Foram encriptadas " + contador + " contas antigas.");
     }
 }
