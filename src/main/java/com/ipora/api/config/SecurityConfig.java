@@ -31,9 +31,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // Rotas permitidas
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/login").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cidadaos/migrar-senhas").permitAll()
+
+                        // ROTAS (Cadastro e Esqueci a Senha)
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/cadastrar").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/enviar-otp-cadastro").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/recuperar-senha/solicitar").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/recuperar-senha/validar-codigo").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/cidadaos/recuperar-senha/alterar").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);
