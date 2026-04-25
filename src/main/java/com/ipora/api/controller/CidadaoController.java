@@ -73,21 +73,30 @@ public class CidadaoController {
                 // Atualiza o esqueleto com os dados reais que digitou no app
                 existente.setNome(novoCidadao.getNome());
                 existente.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
-
-                // MANTÉM O PERFIL SUPER_ADMIN QUE FOI DADO NO PAINEL WEB
                 repository.save(existente);
-                return ResponseEntity.ok(existente);
+
+                // --- CORREÇÃO: GERA O TOKEN PARA O USUÁRIO LOGAR DIRETO ---
+                String tokenGerado = tokenService.gerarToken(existente);
+                CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(existente);
+                usuarioSeguro.setToken(tokenGerado);
+
+                return ResponseEntity.ok(usuarioSeguro);
             } else {
-                // Se já tem senha, a conta já está em uso normal
                 return ResponseEntity.badRequest().body("Número já cadastrado.");
             }
         }
 
-        //  SE NÃO EXISTE NA LISTA VIP, É UM CIDADÃO COMUM
-        novoCidadao.setPerfil("CIDADÃO"); // Trava de segurança
+        // SE NÃO EXISTE NA LISTA VIP, É UM CIDADÃO COMUM
+        novoCidadao.setPerfil("CIDADÃO");
         novoCidadao.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
         repository.save(novoCidadao);
-        return ResponseEntity.ok(novoCidadao);
+
+        // --- CORREÇÃO: GERA O TOKEN PARA O USUÁRIO LOGAR DIRETO ---
+        String tokenGerado = tokenService.gerarToken(novoCidadao);
+        CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(novoCidadao);
+        usuarioSeguro.setToken(tokenGerado);
+
+        return ResponseEntity.ok(usuarioSeguro);
     }
 
     @PostMapping("/login")
