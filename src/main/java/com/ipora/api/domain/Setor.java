@@ -34,7 +34,6 @@ public class Setor {
     public String getIcone() { return icone; }
     public void setIcone(String icone) { this.icone = icone; }
 
-    //  Getters e Setters da cidade
     public String getCidade() { return cidade; }
     public void setCidade(String cidade) { this.cidade = cidade; }
 }
