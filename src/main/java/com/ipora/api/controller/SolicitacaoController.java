@@ -366,8 +366,8 @@ public class SolicitacaoController {
         if (remetente.equals("PREFEITURA") && solicitacao.getCidadao() != null && solicitacao.getCidadao().getPushToken() != null) {
             expoNotificationService.enviarNotificacao(
                     java.util.Collections.singletonList(solicitacao.getCidadao().getPushToken()),
-                    "Nova mensagem da Prefeitura",
-                    "A prefeitura respondeu no seu chamado de " + solicitacao.getCategoria()
+                    "Nova mensagem da sua solicitação!",
+                    "Teve nova resposta no seu chamado de " + solicitacao.getCategoria()
             );
         }
 
