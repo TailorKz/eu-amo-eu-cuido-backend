@@ -323,12 +323,14 @@ public class SolicitacaoController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deletarSolicitacao(@PathVariable Long id) {
-        if (solicitacaoRepository.existsById(id)) {
-            solicitacaoRepository.deleteById(id);
-            return ResponseEntity.ok().build();
+    public ResponseEntity<Void> deletarSolicitacao(@PathVariable Long id) {
+        var mensagens = mensagemRepository.findBySolicitacaoIdOrderByDataHoraAsc(id);
+        if (!mensagens.isEmpty()) {
+            mensagemRepository.deleteAll(mensagens);
         }
-        return ResponseEntity.notFound().build();
+
+        solicitacaoRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     // SISTEMA DE CHAT
