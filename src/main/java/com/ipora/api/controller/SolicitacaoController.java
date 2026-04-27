@@ -36,6 +36,9 @@ public class SolicitacaoController {
     @Autowired
     private com.ipora.api.service.ExpoNotificationService expoNotificationService;
 
+    @Autowired
+    private com.ipora.api.repository.MensagemRepository mensagemRepository;
+
     private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
         final int RAIO_TERRA = 6371; // Raio da Terra em Km
 
@@ -70,13 +73,13 @@ public class SolicitacaoController {
             com.ipora.api.domain.Cidadao cidadao = cidadaoOpt.get();
             String nomeCidade = cidadao.getCidade();
 
-            // 1. LÓGICA DE GEOFENCING (Cerca Virtual)
+            // LÓGICA DE GEOFENCING (Cerca Virtual)
             if (latitude != null && longitude != null) {
                 // Coordenadas padrão (Iporã do Oeste)
                 double centroLat = -26.9877;
                 double centroLon = -53.5350;
 
-                // Adapte para as outras cidades da sua lista
+                // Futuramente adaptar para as outras cidades da lista
                 if(nomeCidade.equalsIgnoreCase("São Miguel do Oeste")){
                     centroLat = -26.7262;
                     centroLon = -53.5186;
@@ -87,7 +90,7 @@ public class SolicitacaoController {
 
                 double distancia = calcularDistancia(latitude, longitude, centroLat, centroLon);
 
-                // Se a pessoa estiver a mais de 25km do centro da cidade, barra!
+                // Se a pessoa estiver a mais de 25km do centro da cidade, envia um erro.
                 if (distancia > 25.0) {
                     return ResponseEntity.status(403).body("Erro: Adicione manualmente, sua localização atual está fora dos limites de " + nomeCidade);
                 }
@@ -104,7 +107,7 @@ public class SolicitacaoController {
 
             String urlNuvem = String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, nomeArquivo);
 
-            // 3. SALVAR OS DADOS NO BANCO DE DADOS
+            // SALVAR OS DADOS NO BANCO DE DADOS
             Solicitacao novaSolicitacao = new Solicitacao();
             novaSolicitacao.setCategoria(categoria);
             novaSolicitacao.setLocalizacao(localizacao);
@@ -115,7 +118,7 @@ public class SolicitacaoController {
             novaSolicitacao.setUrlImagem(urlNuvem);
             novaSolicitacao.setCidadao(cidadao);
 
-            // 4. GERAÇÃO INTELIGENTE DO PROTOCOLO
+            // GERAÇÃO INTELIGENTE DO PROTOCOLO
             String sigla = nomeCidade.length() >= 3
                     ? nomeCidade.substring(0, 3).toUpperCase().replace(" ", "")
                     : nomeCidade.toUpperCase();
@@ -326,5 +329,71 @@ public class SolicitacaoController {
             return ResponseEntity.ok().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    // SISTEMA DE CHAT
+
+    // Puxa o histórico de um chamado
+    @GetMapping("/{id}/mensagens")
+    public ResponseEntity<List<com.ipora.api.domain.Mensagem>> listarMensagens(@PathVariable Long id) {
+        return ResponseEntity.ok(mensagemRepository.findBySolicitacaoIdOrderByDataHoraAsc(id));
+    }
+
+    // Envia uma nova mensagem (usado tanto pelo cidadão quanto pela prefeitura)
+    @PostMapping("/{id}/mensagens")
+    public ResponseEntity<com.ipora.api.domain.Mensagem> enviarMensagem(
+            @PathVariable Long id,
+            @RequestParam String texto,
+            @RequestParam String remetente) {
+
+        var opt = solicitacaoRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Solicitacao solicitacao = opt.get();
+
+        com.ipora.api.domain.Mensagem novaMensagem = new com.ipora.api.domain.Mensagem();
+        novaMensagem.setTexto(texto);
+        novaMensagem.setRemetente(remetente); // "CIDADÃO" ou "PREFEITURA"
+        novaMensagem.setSolicitacao(solicitacao);
+
+        com.ipora.api.domain.Mensagem salva = mensagemRepository.save(novaMensagem);
+
+        //SISTEMA DE NOTIFICAÇÕES BIDIRECIONAL
+
+        // Se a PREFEITURA enviou a mensagem, notifica o cidadão
+        if (remetente.equals("PREFEITURA") && solicitacao.getCidadao() != null && solicitacao.getCidadao().getPushToken() != null) {
+            expoNotificationService.enviarNotificacao(
+                    java.util.Collections.singletonList(solicitacao.getCidadao().getPushToken()),
+                    "Nova mensagem da Prefeitura",
+                    "A prefeitura respondeu no seu chamado de " + solicitacao.getCategoria()
+            );
+        }
+
+        // Se o CIDADÃO enviou a mensagem, notifica os secretários do setor
+        else if (remetente.equals("CIDADÃO") && solicitacao.getCidadao() != null) {
+
+            // Vai ao banco e busca todos os GESTORES e FUNCIONÁRIOS da mesma cidade e que cuidam daquela categoria
+            List<com.ipora.api.domain.Cidadao> equipeSetor = cidadaoRepository.findByCidadeAndSetorAtuacaoAndPerfilIn(
+                    solicitacao.getCidadao().getCidade(),
+                    solicitacao.getCategoria(),
+                    java.util.Arrays.asList("GESTOR_SETOR", "FUNCIONARIO")
+            );
+
+            // Pega apenas os "Push Tokens" que não são nulos
+            List<String> tokensEquipe = equipeSetor.stream()
+                    .map(com.ipora.api.domain.Cidadao::getPushToken)
+                    .filter(token -> token != null && !token.isEmpty())
+                    .collect(java.util.stream.Collectors.toList());
+
+            if (!tokensEquipe.isEmpty()) {
+                expoNotificationService.enviarNotificacao(
+                        tokensEquipe,
+                        "Nova mensagem de um Cidadão",
+                        "O cidadão enviou uma mensagem no chamado: " + solicitacao.getProtocolo()
+                );
+            }
+        }
+
+        return ResponseEntity.ok(salva);
     }
 }
