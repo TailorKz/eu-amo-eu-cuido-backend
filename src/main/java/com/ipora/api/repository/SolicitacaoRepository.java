@@ -11,8 +11,8 @@ public interface SolicitacaoRepository extends JpaRepository<Solicitacao, Long> 
     // Busca todas as solicitações de uma cidade (usada pelo Admin e para as métricas "TOTAIS")
     List<Solicitacao> findByCidadaoCidadeOrderByDataCriacaoDesc(String cidade);
 
-    // Busca as solicitações de um setor específico, MAS restrito à cidade!
-    List<Solicitacao> findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(String categoria, String cidade);
+    // Busca as solicitações de um setor específico, restrito à cidade!
+    List<Solicitacao> findByCategoriaInAndCidadaoCidadeOrderByDataCriacaoDesc(java.util.List<String> categorias, String cidade);
 
     // Busca para o Vereador (Apenas status específicos daquela cidade)
     List<Solicitacao> findByCidadaoCidadeAndStatusInOrderByDataCriacaoDesc(String cidade, List<String> status);

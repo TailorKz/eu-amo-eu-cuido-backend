@@ -241,10 +241,17 @@ public class SolicitacaoController {
     }
 
     @GetMapping("/setor/{setor}")
-    public ResponseEntity<List<Solicitacao>> listarPorSetorECidade(
+    public ResponseEntity<java.util.List<Solicitacao>> listarPorSetorECidade(
             @PathVariable String setor,
             @RequestParam String cidade) {
-        return ResponseEntity.ok(solicitacaoRepository.findByCategoriaAndCidadaoCidadeOrderByDataCriacaoDesc(setor, cidade));
+
+        // Transforma o texto "Infraestrutura, Limpeza Urbana" numa lista separada: ["Infraestrutura", "Limpeza Urbana"]
+        java.util.List<String> listaSetores = java.util.Arrays.stream(setor.split(","))
+                .map(String::trim) // Remove espaços em branco que possam sobrar após a vírgula
+                .collect(java.util.stream.Collectors.toList());
+
+        // Usa o novo método do repositório que aceita listas (CategoriaIn)
+        return ResponseEntity.ok(solicitacaoRepository.findByCategoriaInAndCidadaoCidadeOrderByDataCriacaoDesc(listaSetores, cidade));
     }
 
     @GetMapping("/vereador")
