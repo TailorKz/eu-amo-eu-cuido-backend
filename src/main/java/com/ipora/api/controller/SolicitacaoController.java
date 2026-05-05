@@ -135,7 +135,7 @@ public class SolicitacaoController {
             Solicitacao solicitacaoSalva = solicitacaoRepository.save(novaSolicitacao);
 
             if (solicitacaoSalva.getCidadao() != null && solicitacaoSalva.getCategoria() != null) {
-                List<com.ipora.api.domain.Cidadao> equipeSetor = cidadaoRepository.findByCidadeAndSetorAtuacaoAndPerfilIn(
+                List<com.ipora.api.domain.Cidadao> equipeSetor = cidadaoRepository.findByCidadeAndSetorAtuacaoContainingAndPerfilIn(
                         solicitacaoSalva.getCidadao().getCidade(),
                         solicitacaoSalva.getCategoria(),
                         java.util.Arrays.asList("GESTOR_SETOR", "FUNCIONARIO")
@@ -375,7 +375,7 @@ public class SolicitacaoController {
         else if (remetente.equals("CIDADÃO") && solicitacao.getCidadao() != null) {
 
             // Vai ao banco e busca todos os GESTORES e FUNCIONÁRIOS da mesma cidade e que cuidam daquela categoria
-            List<com.ipora.api.domain.Cidadao> equipeSetor = cidadaoRepository.findByCidadeAndSetorAtuacaoAndPerfilIn(
+            List<com.ipora.api.domain.Cidadao> equipeSetor = cidadaoRepository.findByCidadeAndSetorAtuacaoContainingAndPerfilIn(
                     solicitacao.getCidadao().getCidade(),
                     solicitacao.getCategoria(),
                     java.util.Arrays.asList("GESTOR_SETOR", "FUNCIONARIO")
