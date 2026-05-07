@@ -39,6 +39,9 @@ public class SolicitacaoController {
     @Autowired
     private com.ipora.api.repository.MensagemRepository mensagemRepository;
 
+    @Autowired
+    private com.ipora.api.repository.ConfiguracaoRepository configuracaoRepository;
+
     private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
         final int RAIO_TERRA = 6371; // Raio da Terra em Km
 
@@ -74,25 +77,24 @@ public class SolicitacaoController {
             String nomeCidade = cidadao.getCidade();
 
             // LÓGICA DE GEOFENCING (Cerca Virtual)
+            // LÓGICA DE GEOFENCING DINÂMICO (Cerca Virtual via Banco)
             if (latitude != null && longitude != null) {
-                // Coordenadas padrão (Iporã do Oeste)
-                double centroLat = -26.9877;
-                double centroLon = -53.5350;
+                var configOpt = configuracaoRepository.findByCidade(nomeCidade);
 
-                // Futuramente adaptar para as outras cidades da lista
-                if(nomeCidade.equalsIgnoreCase("São Miguel do Oeste")){
-                    centroLat = -26.7262;
-                    centroLon = -53.5186;
-                } else if(nomeCidade.equalsIgnoreCase("Itapiranga")){
-                    centroLat = -27.1685;
-                    centroLon = -53.7126;
-                }
+                if(configOpt.isPresent()) {
+                    var config = configOpt.get();
 
-                double distancia = calcularDistancia(latitude, longitude, centroLat, centroLon);
+                    // Fallbacks de segurança caso o Admin tenha deixado vazio
+                    double centroLat = config.getLatitudeCentro() != null ? config.getLatitudeCentro() : -26.9877;
+                    double centroLon = config.getLongitudeCentro() != null ? config.getLongitudeCentro() : -53.5350;
+                    double raioPermitido = config.getRaioAtendimentoKm() != null ? config.getRaioAtendimentoKm() : 25.0;
 
-                // Se a pessoa estiver a mais de 25km do centro da cidade, envia um erro.
-                if (distancia > 25.0) {
-                    return ResponseEntity.status(403).body("Erro: Adicione manualmente, sua localização atual está fora dos limites de " + nomeCidade);
+                    double distancia = calcularDistancia(latitude, longitude, centroLat, centroLon);
+
+                    // Se a pessoa estiver fora do raio permitido daquela cidade específica
+                    if (distancia > raioPermitido) {
+                        return ResponseEntity.status(403).body("Erro: Adicione manualmente, a sua localização atual está fora dos limites de " + nomeCidade + " (Raio máx: " + raioPermitido + "km).");
+                    }
                 }
             }
 

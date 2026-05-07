@@ -10,86 +10,70 @@ public class ConfiguracaoPrefeitura {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // A imagem que vai aparecer atrás do Login
+    @Column(unique = true)
+    private String cidade;
+
+    // --- ASSETS DINÂMICOS DA CIDADE ---
+    private String logoUrl;
+    private String brasaoUrl;
     private String imagemFundoLogin;
 
-    // Textos do Pop-up de Aviso
+    // --- GEOFENCING (Cerca Virtual) ---
+    private Double latitudeCentro;
+    private Double longitudeCentro;
+    private Double raioAtendimentoKm;
+
+    // --- AVISOS POP-UP ---
     private String tituloPopUp;
 
-    @Column(columnDefinition = "TEXT") // TEXT permite textos maiores
+    @Column(columnDefinition = "TEXT")
     private String mensagemPopUp;
 
-    // Botão de ligar/desligar o aviso
     private boolean popUpAtivo;
-
     private boolean popUpApenasUmaVez;
 
-    // Chave do WhatsApp/Twilio
     private String tokenTwilio;
 
-    @Column(unique = true) // Garante que cada cidade tenha apenas UMA configuração
-    private String cidade;
     // ==========================================
-    // GETTERS E SETTERS (Obrigatórios no Java)
+    // GETTERS E SETTERS (Pode gerar via IDE ou colar estes)
     // ==========================================
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getImagemFundoLogin() {
-        return imagemFundoLogin;
-    }
-
-    public void setImagemFundoLogin(String imagemFundoLogin) {
-        this.imagemFundoLogin = imagemFundoLogin;
-    }
-
-    public String getTituloPopUp() {
-        return tituloPopUp;
-    }
-
-    public void setTituloPopUp(String tituloPopUp) {
-        this.tituloPopUp = tituloPopUp;
-    }
-
-    public String getMensagemPopUp() {
-        return mensagemPopUp;
-    }
-
-    public void setMensagemPopUp(String mensagemPopUp) {
-        this.mensagemPopUp = mensagemPopUp;
-    }
-
-    public boolean isPopUpAtivo() {
-        return popUpAtivo;
-    }
-
-    public void setPopUpAtivo(boolean popUpAtivo) {
-        this.popUpAtivo = popUpAtivo;
-    }
-
-    public String getTokenTwilio() {
-        return tokenTwilio;
-    }
-
-    public void setTokenTwilio(String tokenTwilio) {
-        this.tokenTwilio = tokenTwilio;
-    }
-
-    public boolean isPopUpApenasUmaVez() {
-        return popUpApenasUmaVez;
-    }
-
-    public void setPopUpApenasUmaVez(boolean popUpApenasUmaVez) {
-        this.popUpApenasUmaVez = popUpApenasUmaVez;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
     public String getCidade() { return cidade; }
-
     public void setCidade(String cidade) { this.cidade = cidade; }
+
+    public String getLogoUrl() { return logoUrl; }
+    public void setLogoUrl(String logoUrl) { this.logoUrl = logoUrl; }
+
+    public String getBrasaoUrl() { return brasaoUrl; }
+    public void setBrasaoUrl(String brasaoUrl) { this.brasaoUrl = brasaoUrl; }
+
+    public String getImagemFundoLogin() { return imagemFundoLogin; }
+    public void setImagemFundoLogin(String imagemFundoLogin) { this.imagemFundoLogin = imagemFundoLogin; }
+
+    public Double getLatitudeCentro() { return latitudeCentro; }
+    public void setLatitudeCentro(Double latitudeCentro) { this.latitudeCentro = latitudeCentro; }
+
+    public Double getLongitudeCentro() { return longitudeCentro; }
+    public void setLongitudeCentro(Double longitudeCentro) { this.longitudeCentro = longitudeCentro; }
+
+    public Double getRaioAtendimentoKm() { return raioAtendimentoKm; }
+    public void setRaioAtendimentoKm(Double raioAtendimentoKm) { this.raioAtendimentoKm = raioAtendimentoKm; }
+
+    public String getTituloPopUp() { return tituloPopUp; }
+    public void setTituloPopUp(String tituloPopUp) { this.tituloPopUp = tituloPopUp; }
+
+    public String getMensagemPopUp() { return mensagemPopUp; }
+    public void setMensagemPopUp(String mensagemPopUp) { this.mensagemPopUp = mensagemPopUp; }
+
+    public boolean isPopUpAtivo() { return popUpAtivo; }
+    public void setPopUpAtivo(boolean popUpAtivo) { this.popUpAtivo = popUpAtivo; }
+
+    public boolean isPopUpApenasUmaVez() { return popUpApenasUmaVez; }
+    public void setPopUpApenasUmaVez(boolean popUpApenasUmaVez) { this.popUpApenasUmaVez = popUpApenasUmaVez; }
+
+    public String getTokenTwilio() { return tokenTwilio; }
+    public void setTokenTwilio(String tokenTwilio) { this.tokenTwilio = tokenTwilio; }
 }

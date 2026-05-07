@@ -37,6 +37,11 @@ public class ConfiguracaoController {
             configPadrao.setMensagemPopUp("Mantenha a nossa cidade limpa.");
             configPadrao.setImagemFundoLogin("");
 
+            // Configurações padrão de GPS para evitar falhas no App
+            configPadrao.setLatitudeCentro(-26.9877); // Default Iporã
+            configPadrao.setLongitudeCentro(-53.5350); // Default Iporã
+            configPadrao.setRaioAtendimentoKm(25.0); // 25km de raio
+
             return ResponseEntity.ok(repository.save(configPadrao));
         }
         return ResponseEntity.ok(configOpt.get());
@@ -53,10 +58,17 @@ public class ConfiguracaoController {
             ConfiguracaoPrefeitura configAtual = configOpt.get();
 
             configAtual.setImagemFundoLogin(dadosAtualizados.getImagemFundoLogin());
+            configAtual.setLogoUrl(dadosAtualizados.getLogoUrl());
+            configAtual.setBrasaoUrl(dadosAtualizados.getBrasaoUrl());
             configAtual.setTituloPopUp(dadosAtualizados.getTituloPopUp());
             configAtual.setMensagemPopUp(dadosAtualizados.getMensagemPopUp());
             configAtual.setPopUpAtivo(dadosAtualizados.isPopUpAtivo());
             configAtual.setPopUpApenasUmaVez(dadosAtualizados.isPopUpApenasUmaVez());
+
+            // Atualiza Cerca Virtual
+            if(dadosAtualizados.getLatitudeCentro() != null) configAtual.setLatitudeCentro(dadosAtualizados.getLatitudeCentro());
+            if(dadosAtualizados.getLongitudeCentro() != null) configAtual.setLongitudeCentro(dadosAtualizados.getLongitudeCentro());
+            if(dadosAtualizados.getRaioAtendimentoKm() != null) configAtual.setRaioAtendimentoKm(dadosAtualizados.getRaioAtendimentoKm());
 
             return ResponseEntity.ok(repository.save(configAtual));
         }
