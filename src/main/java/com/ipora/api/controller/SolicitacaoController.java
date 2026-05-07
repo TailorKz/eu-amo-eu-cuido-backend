@@ -103,7 +103,17 @@ public class SolicitacaoController {
                 }
             }
 
-            String nomeArquivo = UUID.randomUUID().toString() + "_" + imagem.getOriginalFilename();
+            String pastaCidade = nomeCidade.toLowerCase()
+                    .replace(" ", "-")
+                    .replaceAll("[ãáâàä]", "a")
+                    .replaceAll("[éêèë]", "e")
+                    .replaceAll("[íîìï]", "i")
+                    .replaceAll("[óôòöõ]", "o")
+                    .replaceAll("[úûùü]", "u")
+                    .replaceAll("[ç]", "c");
+
+            // 2. Cria o caminho completo: pasta-da-cidade/solicitacoes/nomedaarquivo.jpg
+            String nomeArquivo = pastaCidade + "/solicitacoes/" + UUID.randomUUID().toString() + "_" + imagem.getOriginalFilename();
             // UPLOAD DA IMAGEM PARA A AWS S3
             s3Client.putObject(PutObjectRequest.builder()
                             .bucket(bucketName)
@@ -211,7 +221,19 @@ public class SolicitacaoController {
             if (resposta != null) s.setResposta(resposta);
 
             if (imagemResolvida != null && !imagemResolvida.isEmpty()) {
-                String nomeArquivo = UUID.randomUUID().toString() + "_resolvido_" + imagemResolvida.getOriginalFilename();
+                // Recupera a cidade do dono da solicitação
+                String nomeCidade = s.getCidadao().getCidade();
+
+                String pastaCidade = nomeCidade.toLowerCase()
+                        .replace(" ", "-")
+                        .replaceAll("[ãáâàä]", "a")
+                        .replaceAll("[éêèë]", "e")
+                        .replaceAll("[íîìï]", "i")
+                        .replaceAll("[óôòöõ]", "o")
+                        .replaceAll("[úûùü]", "u")
+                        .replaceAll("[ç]", "c");
+
+                String nomeArquivo = pastaCidade + "/resolvidos/" + UUID.randomUUID().toString() + "_resolvido_" + imagemResolvida.getOriginalFilename();
 
                 s3Client.putObject(PutObjectRequest.builder()
                                 .bucket(bucketName)
