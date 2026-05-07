@@ -91,9 +91,14 @@ public class SolicitacaoController {
 
                     double distancia = calcularDistancia(latitude, longitude, centroLat, centroLon);
 
-                    // Se a pessoa estiver fora do raio permitido daquela cidade específica
+                    // Se a pessoa estiver fora do raio permitido
                     if (distancia > raioPermitido) {
-                        return ResponseEntity.status(403).body("Erro: Adicione manualmente, a sua localização atual está fora dos limites de " + nomeCidade + " (Raio máx: " + raioPermitido + "km).");
+                        // MENSAGEM DIAGNÓSTICA PARA O ADMIN DESCOBRIR O ERRO
+                        String erroDiagnostico = String.format(
+                                "Fora da Cerca Virtual.\nSeu GPS: %.4f, %.4f\nCentro Gravado: %.4f, %.4f\nDistância: %.1f km (Raio: %.1f km).",
+                                latitude, longitude, centroLat, centroLon, distancia, raioPermitido
+                        );
+                        return ResponseEntity.status(403).body(erroDiagnostico);
                     }
                 }
             }
