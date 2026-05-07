@@ -98,4 +98,8 @@ public class ConfiguracaoController {
 
         return ResponseEntity.ok("Alerta enviado com sucesso para " + tokensUnicos.size() + " dispositivos da cidade de " + cidade + "!");
     }
+    @GetMapping("/todas")
+    public ResponseEntity<List<String>> listarCidadesAtivas() {
+        return ResponseEntity.ok(repository.listarTodasCidades());
+    }
 }
