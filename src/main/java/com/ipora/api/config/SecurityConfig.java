@@ -35,7 +35,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/login").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/cidadaos/migrar-senhas").permitAll()
-
+                        .requestMatchers(HttpMethod.GET, "/api/configuracoes").permitAll()
                         // ROTAS (Cadastro e Esqueci a Senha)
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/cadastrar").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/cidadaos/enviar-otp-cadastro").permitAll()
