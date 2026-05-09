@@ -129,22 +129,26 @@ public class CidadaoController {
     }
 
     //  Atualização de Cargo/Setor
-    @GetMapping("/refresh")
-    public ResponseEntity<CidadaoResponseDTO> refreshToken() {
-        // 1. Pega o utilizador autenticado diretamente do contexto de segurança
-        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null || !(authentication.getPrincipal() instanceof Cidadao)) {
-            return ResponseEntity.status(401).build();
+    @GetMapping("/{id}/refresh")
+    public ResponseEntity<CidadaoResponseDTO> refreshToken(@PathVariable Long id) {
+        // 1. Busca o cidadão no banco de dados para ter as permissões e setores mais recentes
+        var cidadaoOpt = repository.findById(id);
+        if (cidadaoOpt.isEmpty()) {
+            return ResponseEntity.status(404).build();
         }
 
-        Cidadao cidadaoAutenticado = (Cidadao) authentication.getPrincipal();
+        Cidadao cidadaoAtualizado = cidadaoOpt.get();
 
-        // 2. Gera um novo Token JWT atualizado com as novas permissões
-        String novoToken = tokenService.gerarToken(cidadaoAutenticado);
+        // 2. Trava de segurança (caso o admin tenha bloqueado a pessoa)
+        if (cidadaoAtualizado.getBloqueado() != null && cidadaoAtualizado.getBloqueado()) {
+            return ResponseEntity.status(403).build();
+        }
 
-        // 3. Devolve exatamente o mesmo DTO que a tela de login usa
-        CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(cidadaoAutenticado);
+        // 3. Gera um novo Token JWT
+        String novoToken = tokenService.gerarToken(cidadaoAtualizado);
+
+        // 4. Devolve o DTO seguro (exatamente como no login)
+        CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(cidadaoAtualizado);
         usuarioSeguro.setToken(novoToken);
 
         return ResponseEntity.ok(usuarioSeguro);
