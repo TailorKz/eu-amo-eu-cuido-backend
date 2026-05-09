@@ -128,6 +128,28 @@ public class CidadaoController {
         return ResponseEntity.status(401).build();
     }
 
+    //  Atualização de Cargo/Setor
+    @GetMapping("/refresh")
+    public ResponseEntity<CidadaoResponseDTO> refreshToken() {
+        // 1. Pega o utilizador autenticado diretamente do contexto de segurança
+        var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !(authentication.getPrincipal() instanceof Cidadao)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        Cidadao cidadaoAutenticado = (Cidadao) authentication.getPrincipal();
+
+        // 2. Gera um novo Token JWT atualizado com as novas permissões
+        String novoToken = tokenService.gerarToken(cidadaoAutenticado);
+
+        // 3. Devolve exatamente o mesmo DTO que a tela de login usa
+        CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(cidadaoAutenticado);
+        usuarioSeguro.setToken(novoToken);
+
+        return ResponseEntity.ok(usuarioSeguro);
+    }
+
     // o Admin só vê a cidade dele.
     @GetMapping("/cidade/{cidade}")
     public ResponseEntity<List<Cidadao>> listarPorCidade(@PathVariable String cidade) {
