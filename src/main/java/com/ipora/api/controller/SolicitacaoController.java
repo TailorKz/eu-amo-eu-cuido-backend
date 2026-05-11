@@ -448,30 +448,30 @@ public class SolicitacaoController {
 
     // SISTEMA DE LEITURA E NOTIFICAÇÕES VISUAIS NO APP
 
-    // 1. MARCAR COMO LIDO
     @PostMapping("/{solicitacaoId}/marcar-lido/{usuarioId}")
     public ResponseEntity<Void> marcarComoLido(@PathVariable Long solicitacaoId, @PathVariable Long usuarioId) {
-        // Encontra a última mensagem deste chamado
+        // 1. Pega o ID da última mensagem (0 se o chat estiver vazio)
         Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(solicitacaoId);
+        Long idDaUltima = ultimaMsg.map(Mensagem::getId).orElse(0L);
 
-        if (ultimaMsg.isPresent()) {
-            Optional<LeituraMensagem> optLeitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solicitacaoId);
-            LeituraMensagem leitura;
+        // 2. Busca ou cria o registro de leitura para este usuário
+        Optional<LeituraMensagem> optLeitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solicitacaoId);
+        LeituraMensagem leitura;
 
-            if (optLeitura.isPresent()) {
-                leitura = optLeitura.get();
-            } else {
-                // Busca as entidades reais no banco de dados
-                Cidadao cid = cidadaoRepository.findById(usuarioId).orElse(null);
-                Solicitacao sol = solicitacaoRepository.findById(solicitacaoId).orElse(null);
-                if (cid == null || sol == null) return ResponseEntity.badRequest().build();
+        if (optLeitura.isPresent()) {
+            leitura = optLeitura.get();
+        } else {
+            Cidadao cid = cidadaoRepository.findById(usuarioId).orElse(null);
+            Solicitacao sol = solicitacaoRepository.findById(solicitacaoId).orElse(null);
+            if (cid == null || sol == null) return ResponseEntity.badRequest().build();
 
-                leitura = new LeituraMensagem(cid, sol, 0L);
-            }
-
-            leitura.setUltimaMensagemLidaId(ultimaMsg.get().getId());
-            leituraRepository.save(leitura);
+            leitura = new LeituraMensagem(cid, sol, 0L);
         }
+
+        // 3. Salva que o usuário viu o chamado até este ponto (mesmo que seja o ponto 0)
+        leitura.setUltimaMensagemLidaId(idDaUltima);
+        leituraRepository.save(leitura);
+
         return ResponseEntity.ok().build();
     }
 
