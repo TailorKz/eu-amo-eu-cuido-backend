@@ -1,7 +1,12 @@
 package com.ipora.api.controller;
 
+import com.ipora.api.domain.Cidadao;
+import com.ipora.api.domain.LeituraMensagem;
+import com.ipora.api.domain.Mensagem;
 import com.ipora.api.domain.Solicitacao;
 import com.ipora.api.repository.CidadaoRepository;
+import com.ipora.api.repository.LeituraMensagemRepository;
+import com.ipora.api.repository.MensagemRepository;
 import com.ipora.api.repository.SolicitacaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -41,6 +48,10 @@ public class SolicitacaoController {
 
     @Autowired
     private com.ipora.api.repository.ConfiguracaoRepository configuracaoRepository;
+
+    @Autowired
+    private LeituraMensagemRepository leituraRepository;
+
 
     private double calcularDistancia(double lat1, double lon1, double lat2, double lon2) {
         final int RAIO_TERRA = 6371; // Raio da Terra em Km
@@ -433,5 +444,80 @@ public class SolicitacaoController {
         }
 
         return ResponseEntity.ok(salva);
+    }
+
+    // SISTEMA DE LEITURA E NOTIFICAÇÕES VISUAIS NO APP
+
+    // 1. MARCAR COMO LIDO
+    @PostMapping("/{solicitacaoId}/marcar-lido/{usuarioId}")
+    public ResponseEntity<Void> marcarComoLido(@PathVariable Long solicitacaoId, @PathVariable Long usuarioId) {
+        // Encontra a última mensagem deste chamado
+        Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(solicitacaoId);
+
+        if (ultimaMsg.isPresent()) {
+            Optional<LeituraMensagem> optLeitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solicitacaoId);
+            LeituraMensagem leitura;
+
+            if (optLeitura.isPresent()) {
+                leitura = optLeitura.get();
+            } else {
+                // Busca as entidades reais no banco de dados
+                Cidadao cid = cidadaoRepository.findById(usuarioId).orElse(null);
+                Solicitacao sol = solicitacaoRepository.findById(solicitacaoId).orElse(null);
+                if (cid == null || sol == null) return ResponseEntity.badRequest().build();
+
+                leitura = new LeituraMensagem(cid, sol, 0L);
+            }
+
+            leitura.setUltimaMensagemLidaId(ultimaMsg.get().getId());
+            leituraRepository.save(leitura);
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    // 2. BUSCAR QUAIS CHAMADOS TÊM MENSAGENS NÃO LIDAS
+    @GetMapping("/nao-lidas/{usuarioId}")
+    public ResponseEntity<List<Long>> buscarChamadosNaoLidos(@PathVariable Long usuarioId) {
+        // lista de IDs de solicitações que terão a bolinha "1" em cima
+        List<Long> chamadosComMensagemNova = new ArrayList<>();
+
+        Cidadao usuario = cidadaoRepository.findById(usuarioId).orElse(null);
+        if (usuario == null) return ResponseEntity.ok(chamadosComMensagemNova);
+
+        List<Solicitacao> chamadosDoUsuario;
+
+        // Se for Cidadão, olha só para os dele. Se for Gestor/Admin, olha para os do setor ou da cidade
+        if ("CIDADAO".equals(usuario.getPerfil())) {
+            chamadosDoUsuario = solicitacaoRepository.findByCidadaoIdOrderByDataCriacaoDesc(usuarioId);
+        } else if ("SUPER_ADMIN".equals(usuario.getPerfil()) || "PREFEITO".equals(usuario.getPerfil())) {
+            chamadosDoUsuario = solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(usuario.getCidade());
+        } else {
+            // Gestores e Funcionários
+            List<String> nomesSetores = new ArrayList<>();
+            if (usuario.getSetorAtuacao() != null) {
+                nomesSetores = java.util.Arrays.stream(usuario.getSetorAtuacao().split(","))
+                        .map(String::trim)
+                        .collect(java.util.stream.Collectors.toList());
+            }
+            chamadosDoUsuario = solicitacaoRepository.findByCategoriaInAndCidadaoCidadeOrderByDataCriacaoDesc(nomesSetores, usuario.getCidade());
+        }
+
+        // Verifica se a última mensagem é mais recente que a leitura
+        for (Solicitacao sol : chamadosDoUsuario) {
+            Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(sol.getId());
+            if (ultimaMsg.isPresent()) {
+                Long ultimaMsgId = ultimaMsg.get().getId();
+
+                Optional<LeituraMensagem> leitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, sol.getId());
+                Long ultimaLida = leitura.map(LeituraMensagem::getUltimaMensagemLidaId).orElse(0L);
+
+                // Se o ID da última mensagem for maior do que o ID que ele leu, tem novidade!
+                if (ultimaMsgId > ultimaLida) {
+                    chamadosComMensagemNova.add(sol.getId());
+                }
+            }
+        }
+
+        return ResponseEntity.ok(chamadosComMensagemNova);
     }
 }
