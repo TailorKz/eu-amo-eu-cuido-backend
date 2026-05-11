@@ -475,11 +475,21 @@ public class SolicitacaoController {
         return ResponseEntity.ok().build();
     }
 
+    // BUSCAR QUAIS CHAMADOS TÊM MENSAGENS NÃO LIDAS OU SÃO NOVOS
     @GetMapping("/nao-lidas/{usuarioId}")
-    public ResponseEntity<List<Long>> buscarChamadosNaoLidos(@PathVariable Long usuarioId) {
-        List<Long> chamadosComNovidade = new ArrayList<>();
+    public ResponseEntity<java.util.Map<String, List<Long>>> buscarChamadosNaoLidos(@PathVariable Long usuarioId) {
+
+        List<Long> chamadosNovos = new ArrayList<>();
+        List<Long> chamadosComMensagem = new ArrayList<>();
+
+        java.util.Map<String, List<Long>> resultado = new java.util.HashMap<>();
+
         Cidadao usuario = cidadaoRepository.findById(usuarioId).orElse(null);
-        if (usuario == null) return ResponseEntity.ok(chamadosComNovidade);
+        if (usuario == null) {
+            resultado.put("novos", chamadosNovos);
+            resultado.put("mensagens", chamadosComMensagem);
+            return ResponseEntity.ok(resultado);
+        }
 
         List<Solicitacao> chamadosParaVerificar;
 
@@ -501,7 +511,7 @@ public class SolicitacaoController {
 
             // CASO 1: Nunca abriu o chamado (É NOVO para este utilizador)
             if (leitura.isEmpty()) {
-                chamadosComNovidade.add(sol.getId());
+                chamadosNovos.add(sol.getId());
                 continue;
             }
 
@@ -509,10 +519,13 @@ public class SolicitacaoController {
             Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(sol.getId());
             if (ultimaMsg.isPresent()) {
                 if (ultimaMsg.get().getId() > leitura.get().getUltimaMensagemLidaId()) {
-                    chamadosComNovidade.add(sol.getId());
+                    chamadosComMensagem.add(sol.getId());
                 }
             }
         }
-        return ResponseEntity.ok(chamadosComNovidade);
+
+        resultado.put("novos", chamadosNovos);
+        resultado.put("mensagens", chamadosComMensagem);
+        return ResponseEntity.ok(resultado);
     }
 }
