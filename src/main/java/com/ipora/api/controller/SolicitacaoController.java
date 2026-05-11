@@ -475,49 +475,44 @@ public class SolicitacaoController {
         return ResponseEntity.ok().build();
     }
 
-    // 2. BUSCAR QUAIS CHAMADOS TÊM MENSAGENS NÃO LIDAS
     @GetMapping("/nao-lidas/{usuarioId}")
     public ResponseEntity<List<Long>> buscarChamadosNaoLidos(@PathVariable Long usuarioId) {
-        // lista de IDs de solicitações que terão a bolinha "1" em cima
-        List<Long> chamadosComMensagemNova = new ArrayList<>();
-
+        List<Long> chamadosComNovidade = new ArrayList<>();
         Cidadao usuario = cidadaoRepository.findById(usuarioId).orElse(null);
-        if (usuario == null) return ResponseEntity.ok(chamadosComMensagemNova);
+        if (usuario == null) return ResponseEntity.ok(chamadosComNovidade);
 
-        List<Solicitacao> chamadosDoUsuario;
+        List<Solicitacao> chamadosParaVerificar;
 
-        // Se for Cidadão, olha só para os dele. Se for Gestor/Admin, olha para os do setor ou da cidade
         if ("CIDADAO".equals(usuario.getPerfil())) {
-            chamadosDoUsuario = solicitacaoRepository.findByCidadaoIdOrderByDataCriacaoDesc(usuarioId);
+            chamadosParaVerificar = solicitacaoRepository.findByCidadaoIdOrderByDataCriacaoDesc(usuarioId);
         } else if ("SUPER_ADMIN".equals(usuario.getPerfil()) || "PREFEITO".equals(usuario.getPerfil())) {
-            chamadosDoUsuario = solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(usuario.getCidade());
+            chamadosParaVerificar = solicitacaoRepository.findByCidadaoCidadeOrderByDataCriacaoDesc(usuario.getCidade());
         } else {
-            // Gestores e Funcionários
             List<String> nomesSetores = new ArrayList<>();
             if (usuario.getSetorAtuacao() != null) {
                 nomesSetores = java.util.Arrays.stream(usuario.getSetorAtuacao().split(","))
-                        .map(String::trim)
-                        .collect(java.util.stream.Collectors.toList());
+                        .map(String::trim).collect(java.util.stream.Collectors.toList());
             }
-            chamadosDoUsuario = solicitacaoRepository.findByCategoriaInAndCidadaoCidadeOrderByDataCriacaoDesc(nomesSetores, usuario.getCidade());
+            chamadosParaVerificar = solicitacaoRepository.findByCategoriaInAndCidadaoCidadeOrderByDataCriacaoDesc(nomesSetores, usuario.getCidade());
         }
 
-        // Verifica se a última mensagem é mais recente que a leitura
-        for (Solicitacao sol : chamadosDoUsuario) {
+        for (Solicitacao sol : chamadosParaVerificar) {
+            Optional<LeituraMensagem> leitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, sol.getId());
+
+            // CASO 1: Nunca abriu o chamado (É NOVO para este utilizador)
+            if (leitura.isEmpty()) {
+                chamadosComNovidade.add(sol.getId());
+                continue;
+            }
+
+            // CASO 2: Já abriu antes, mas tem mensagem nova desde a última leitura
             Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(sol.getId());
             if (ultimaMsg.isPresent()) {
-                Long ultimaMsgId = ultimaMsg.get().getId();
-
-                Optional<LeituraMensagem> leitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, sol.getId());
-                Long ultimaLida = leitura.map(LeituraMensagem::getUltimaMensagemLidaId).orElse(0L);
-
-                // Se o ID da última mensagem for maior do que o ID que ele leu, tem novidade!
-                if (ultimaMsgId > ultimaLida) {
-                    chamadosComMensagemNova.add(sol.getId());
+                if (ultimaMsg.get().getId() > leitura.get().getUltimaMensagemLidaId()) {
+                    chamadosComNovidade.add(sol.getId());
                 }
             }
         }
-
-        return ResponseEntity.ok(chamadosComMensagemNova);
+        return ResponseEntity.ok(chamadosComNovidade);
     }
 }
