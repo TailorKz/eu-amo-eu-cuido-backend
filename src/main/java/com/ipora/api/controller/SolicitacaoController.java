@@ -371,12 +371,22 @@ public class SolicitacaoController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletarSolicitacao(@PathVariable Long id) {
+
+        // 1. Apaga primeiro as notificações da bolinha vermelha para destravar o banco
+        var leituras = leituraRepository.findBySolicitacaoId(id);
+        if (!leituras.isEmpty()) {
+            leituraRepository.deleteAll(leituras);
+        }
+
+        // 2. Apaga o histórico de mensagens do chat
         var mensagens = mensagemRepository.findBySolicitacaoIdOrderByDataHoraAsc(id);
         if (!mensagens.isEmpty()) {
             mensagemRepository.deleteAll(mensagens);
         }
 
+        // 3. após, apaga a solicitação
         solicitacaoRepository.deleteById(id);
+
         return ResponseEntity.noContent().build();
     }
 
