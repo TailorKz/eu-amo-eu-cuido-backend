@@ -11,6 +11,6 @@ public interface ConfiguracaoRepository extends JpaRepository<ConfiguracaoPrefei
     //  banco a buscar a configuração de uma cidade específica
     Optional<ConfiguracaoPrefeitura> findByCidade(String cidade);
     // Retorna apenas os nomes das cidades cadastradas
-    @Query("SELECT c.cidade FROM ConfiguracaoPrefeitura c")
+    @Query("SELECT c.cidade FROM ConfiguracaoPrefeitura c ORDER BY c.id ASC")
     List<String> listarTodasCidades();
 }
