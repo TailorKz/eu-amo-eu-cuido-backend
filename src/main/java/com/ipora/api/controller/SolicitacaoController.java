@@ -450,11 +450,10 @@ public class SolicitacaoController {
 
     @PostMapping("/{solicitacaoId}/marcar-lido/{usuarioId}")
     public ResponseEntity<Void> marcarComoLido(@PathVariable Long solicitacaoId, @PathVariable Long usuarioId) {
-        // 1. Pega o ID da última mensagem (0 se o chat estiver vazio)
+        // Pega a última mensagem (se o chat estiver vazio, assume o ID 0)
         Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(solicitacaoId);
         Long idDaUltima = ultimaMsg.map(Mensagem::getId).orElse(0L);
 
-        // 2. Busca ou cria o registro de leitura para este usuário
         Optional<LeituraMensagem> optLeitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solicitacaoId);
         LeituraMensagem leitura;
 
@@ -468,7 +467,7 @@ public class SolicitacaoController {
             leitura = new LeituraMensagem(cid, sol, 0L);
         }
 
-        // 3. Salva que o usuário viu o chamado até este ponto (mesmo que seja o ponto 0)
+        // Agora ele salva a leitura SEMPRE, tirando o status de "NOVO" definitivamente
         leitura.setUltimaMensagemLidaId(idDaUltima);
         leituraRepository.save(leitura);
 
