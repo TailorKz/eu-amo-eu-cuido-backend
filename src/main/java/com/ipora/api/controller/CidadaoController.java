@@ -86,7 +86,7 @@ public class CidadaoController {
             }
         }
 
-        // SE NÃO EXISTE NA LISTA VIP, É UM CIDADÃO COMUM
+        // SE NÃO EXISTE NA LISTA, É UM CIDADÃO COMUM
         novoCidadao.setPerfil("CIDADÃO");
         novoCidadao.setSenha(passwordEncoder.encode(novoCidadao.getSenha()));
         repository.save(novoCidadao);

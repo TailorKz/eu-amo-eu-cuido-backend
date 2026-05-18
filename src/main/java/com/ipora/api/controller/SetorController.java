@@ -49,4 +49,15 @@ public class SetorController {
         }
         return ResponseEntity.notFound().build();
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Setor> atualizarSetor(@PathVariable Long id, @RequestBody Setor setorAtualizado) {
+        return repository.findById(id)
+                .map(setor -> {
+                    setor.setNome(setorAtualizado.getNome());
+                    setor.setIcone(setorAtualizado.getIcone());
+                    return ResponseEntity.ok(repository.save(setor));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
