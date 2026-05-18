@@ -16,21 +16,21 @@ public class SetorController {
     private SetorRepository repository;
 
     @GetMapping
-    //  o app precisa enviar a cidade na requisição (ex: /api/setores?cidade=Iporã do Oeste)
     public ResponseEntity<List<Setor>> listarSetores(@RequestParam String cidade) {
-        // Busca apenas os setores DAQUELA cidade
-        List<Setor> setores = repository.findByCidade(cidade);
+        // Busca os setores filtrados por tenant e ordenados rigidamente por ID
+        List<Setor> setores = repository.findByCidadeOrderByIdAsc(cidade);
 
-        // Se a tabela estiver vazia PARA ESTA CIDADE, cria os setores padrão
+        // Se a tabela estiver vazia PARA ESTA CIDADE, cria os setores na ordem de prioridade correta
         if (setores.isEmpty()) {
-            repository.save(new Setor("Infraestrutura", "construct-outline", cidade));
-            repository.save(new Setor("Iluminação Pública", "bulb-outline", cidade));
-            repository.save(new Setor("Urbanismo", "business-outline", cidade));
-            repository.save(new Setor("Limpeza Urbana", "trash-bin-outline", cidade));
-            repository.save(new Setor("Saneamento e água", "water-outline", cidade));
-            repository.save(new Setor("Saúde Pública", "medkit-outline", cidade));
+            repository.save(new Setor("Infraestrutura", "https://...", cidade)); // Menor ID (Primeiro)
+            repository.save(new Setor("Iluminação Pública", "https://...", cidade));
+            repository.save(new Setor("Urbanismo", "https://...", cidade));
+            repository.save(new Setor("Limpeza Urbana", "https://...", cidade));
+            repository.save(new Setor("Saneamento e água", "https://...", cidade));
+            repository.save(new Setor("Saúde Pública", "https://...", cidade)); // Maior ID (Último)
 
-            setores = repository.findByCidade(cidade);
+            // Recarrega já com a ordenação cravada
+            setores = repository.findByCidadeOrderByIdAsc(cidade);
         }
         return ResponseEntity.ok(setores);
     }

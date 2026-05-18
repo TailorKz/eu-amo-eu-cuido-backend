@@ -5,6 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface SetorRepository extends JpaRepository<Setor, Long> {
-    //  banco a buscar setores apenas de uma cidade específica
-    List<Setor> findByCidade(String cidade);
+    // Adiciona o OrderByIdAsc para travar a ordenação sequencial do banco
+    List<Setor> findByCidadeOrderByIdAsc(String cidade);
 }
