@@ -50,29 +50,27 @@ public class ConfiguracaoController {
     @PutMapping
     public ResponseEntity<ConfiguracaoPrefeitura> atualizarConfiguracao(
             @RequestParam String cidade,
-            @RequestBody ConfiguracaoPrefeitura dadosAtualizados) {
+            @RequestBody ConfiguracaoPrefeitura dados) {
 
-        Optional<ConfiguracaoPrefeitura> configOpt = repository.findByCidade(cidade);
+        // 1. Procura a configuração. Se não existir (nova cidade), cria uma nova instância
+        ConfiguracaoPrefeitura config = repository.findByCidade(cidade)
+                .orElse(new ConfiguracaoPrefeitura());
 
-        if (configOpt.isPresent()) {
-            ConfiguracaoPrefeitura configAtual = configOpt.get();
+        // 2. Preenche os dados
+        config.setCidade(cidade);
+        config.setImagemFundoLogin(dados.getImagemFundoLogin());
+        config.setLogoUrl(dados.getLogoUrl());
+        config.setBrasaoUrl(dados.getBrasaoUrl());
+        config.setLatitudeCentro(dados.getLatitudeCentro());
+        config.setLongitudeCentro(dados.getLongitudeCentro());
+        config.setRaioAtendimentoKm(dados.getRaioAtendimentoKm());
+        config.setTituloPopUp(dados.getTituloPopUp());
+        config.setMensagemPopUp(dados.getMensagemPopUp());
+        config.setPopUpAtivo(dados.isPopUpAtivo());
+        config.setPopUpApenasUmaVez(dados.isPopUpApenasUmaVez());
 
-            configAtual.setImagemFundoLogin(dadosAtualizados.getImagemFundoLogin());
-            configAtual.setLogoUrl(dadosAtualizados.getLogoUrl());
-            configAtual.setBrasaoUrl(dadosAtualizados.getBrasaoUrl());
-            configAtual.setTituloPopUp(dadosAtualizados.getTituloPopUp());
-            configAtual.setMensagemPopUp(dadosAtualizados.getMensagemPopUp());
-            configAtual.setPopUpAtivo(dadosAtualizados.isPopUpAtivo());
-            configAtual.setPopUpApenasUmaVez(dadosAtualizados.isPopUpApenasUmaVez());
-
-            // Atualiza Cerca Virtual
-            if(dadosAtualizados.getLatitudeCentro() != null) configAtual.setLatitudeCentro(dadosAtualizados.getLatitudeCentro());
-            if(dadosAtualizados.getLongitudeCentro() != null) configAtual.setLongitudeCentro(dadosAtualizados.getLongitudeCentro());
-            if(dadosAtualizados.getRaioAtendimentoKm() != null) configAtual.setRaioAtendimentoKm(dadosAtualizados.getRaioAtendimentoKm());
-
-            return ResponseEntity.ok(repository.save(configAtual));
-        }
-        return ResponseEntity.notFound().build();
+        // 3. Salva no banco de dados. Se era nova, o JPA faz INSERT. Se já existia, faz UPDATE.
+        return ResponseEntity.ok(repository.save(config));
     }
 
     // ROTA DE ALERTA
