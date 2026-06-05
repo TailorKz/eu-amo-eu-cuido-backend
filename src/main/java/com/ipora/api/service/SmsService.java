@@ -31,7 +31,7 @@ public class SmsService {
                 numeroDestino = "+55" + numeroDestino;
             }
 
-            String textoMensagem = "[Eu Amo, Eu Cuido] O seu codigo de seguranca e " + codigo + ". Nao compartilhe com ninguem.";
+            String textoMensagem = "<#> " + codigo + " e o seu codigo do Eu Amo Eu Cuido. Nao compartilhe com ninguem.";
 
             // dispara um SMS
             Message message = Message.creator(

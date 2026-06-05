@@ -2,6 +2,13 @@ package com.ipora.api.controller;
 
 import com.ipora.api.domain.Cidadao;
 import com.ipora.api.domain.CidadaoResponseDTO;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.Refill;
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.http.ResponseEntity;
 import com.ipora.api.repository.CidadaoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +40,14 @@ public class CidadaoController {
     @Autowired
     private com.ipora.api.service.TokenService tokenService;
 
+    private final Map<String, Bucket> cacheRateLimit = new ConcurrentHashMap<>();
+
+    private Bucket criarNovoBucket() {
+        // Limite máximo de 3 disparos por hora por telefone
+        Bandwidth limit = Bandwidth.classic(3, Refill.greedy(3, Duration.ofHours(1)));
+        return Bucket.builder().addLimit(limit).build();
+    }
+
     private boolean isSuperAdmin(jakarta.servlet.http.HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -44,7 +59,13 @@ public class CidadaoController {
 
     //  ROTA NOVA: Gera OTP para Cadastro via SMS
     @PostMapping("/enviar-otp-cadastro")
-    public ResponseEntity<java.util.Map<String, String>> enviarOtpCadastro(@RequestParam String telefone) {
+    public ResponseEntity<?> enviarOtpCadastro(@RequestParam String telefone) {
+
+        Bucket bucket = cacheRateLimit.computeIfAbsent(telefone, k -> criarNovoBucket());
+        if (!bucket.tryConsume(1)) {
+            return ResponseEntity.status(429).body("Muitas tentativas. Aguarde 1 hora para pedir outro SMS.");
+        }
+
         String codigo = gerarCodigoVerificacao();
 
         // Dispara o SMS
@@ -319,6 +340,12 @@ public class CidadaoController {
 
     @PostMapping("/recuperar-senha/solicitar")
     public ResponseEntity<?> solicitarCodigoRecuperacao(@RequestParam String telefone, @RequestParam String cidade) {
+
+        // --- INÍCIO DA TRAVA DE SEGURANÇA ---
+        Bucket bucket = cacheRateLimit.computeIfAbsent(telefone, k -> criarNovoBucket());
+        if (!bucket.tryConsume(1)) {
+            return ResponseEntity.status(429).body("Muitas tentativas. Aguarde 1 hora para pedir outro SMS.");
+        }
         var cidadaoOpt = repository.findByTelefoneAndCidade(telefone, cidade);
         if (cidadaoOpt.isEmpty()) {
             return ResponseEntity.badRequest().body("Usuário não encontrado.");
