@@ -484,6 +484,35 @@ public class SolicitacaoController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/marcar-lido-lote/{usuarioId}")
+    public ResponseEntity<Void> marcarVariosComoLido(@PathVariable Long usuarioId, @RequestBody List<Long> solicitacoesIds) {
+        if (solicitacoesIds == null || solicitacoesIds.isEmpty()) return ResponseEntity.ok().build();
+
+        Cidadao cid = cidadaoRepository.findById(usuarioId).orElse(null);
+        if (cid == null) return ResponseEntity.badRequest().build();
+
+        List<LeituraMensagem> leiturasParaSalvar = new ArrayList<>();
+
+        for (Long solId : solicitacoesIds) {
+            Solicitacao sol = solicitacaoRepository.findById(solId).orElse(null);
+            if (sol == null) continue;
+
+            Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(solId);
+            Long idDaUltima = ultimaMsg.map(Mensagem::getId).orElse(0L);
+
+            LeituraMensagem leitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solId)
+                    .orElse(new LeituraMensagem(cid, sol, 0L));
+
+            leitura.setUltimaMensagemLidaId(idDaUltima);
+            leiturasParaSalvar.add(leitura);
+        }
+
+        // Salva todos de uma vez só no PostgreSQL (Alta performance)
+        leituraRepository.saveAll(leiturasParaSalvar);
+
+        return ResponseEntity.ok().build();
+    }
+
     // BUSCAR QUAIS CHAMADOS TÊM MENSAGENS NÃO LIDAS OU SÃO NOVOS
     @GetMapping("/nao-lidas/{usuarioId}")
     public ResponseEntity<java.util.Map<String, List<Long>>> buscarChamadosNaoLidos(@PathVariable Long usuarioId) {
