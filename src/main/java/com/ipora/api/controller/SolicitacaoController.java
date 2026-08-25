@@ -464,7 +464,7 @@ public class SolicitacaoController {
         Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(solicitacaoId);
         Long idDaUltima = ultimaMsg.map(Mensagem::getId).orElse(0L);
 
-        Optional<LeituraMensagem> optLeitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solicitacaoId);
+        Optional<LeituraMensagem> optLeitura = leituraRepository.findFirstByUsuarioIdAndSolicitacaoId(usuarioId, solicitacaoId);
         LeituraMensagem leitura;
 
         if (optLeitura.isPresent()) {
@@ -500,7 +500,7 @@ public class SolicitacaoController {
             Optional<Mensagem> ultimaMsg = mensagemRepository.findTopBySolicitacaoIdOrderByIdDesc(solId);
             Long idDaUltima = ultimaMsg.map(Mensagem::getId).orElse(0L);
 
-            LeituraMensagem leitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, solId)
+            LeituraMensagem leitura = leituraRepository.findFirstByUsuarioIdAndSolicitacaoId(usuarioId, solId)
                     .orElse(new LeituraMensagem(cid, sol, 0L));
 
             leitura.setUltimaMensagemLidaId(idDaUltima);
@@ -545,7 +545,7 @@ public class SolicitacaoController {
         }
 
         for (Solicitacao sol : chamadosParaVerificar) {
-            Optional<LeituraMensagem> leitura = leituraRepository.findByUsuarioIdAndSolicitacaoId(usuarioId, sol.getId());
+            Optional<LeituraMensagem> leitura = leituraRepository.findFirstByUsuarioIdAndSolicitacaoId(usuarioId, sol.getId());
 
             // CASO 1: Nunca abriu o chamado (É NOVO para este utilizador)
             if (leitura.isEmpty()) {
