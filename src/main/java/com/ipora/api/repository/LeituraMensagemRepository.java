@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface LeituraMensagemRepository extends JpaRepository<LeituraMensagem, Long> {
-    Optional<LeituraMensagem> findByUsuarioIdAndSolicitacaoId(Long usuarioId, Long solicitacaoId);
+    Optional<LeituraMensagem> findFirstByUsuarioIdAndSolicitacaoId(Long usuarioId, Long solicitacaoId);
 
     List<LeituraMensagem> findBySolicitacaoId(Long solicitacaoId);
 }
