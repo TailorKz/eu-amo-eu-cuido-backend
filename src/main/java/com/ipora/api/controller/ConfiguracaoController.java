@@ -29,6 +29,10 @@ public class ConfiguracaoController {
         Optional<ConfiguracaoPrefeitura> configOpt = repository.findByCidade(cidade);
 
         if (configOpt.isEmpty()) {
+            // CORREÇÃO DE SEGURANÇA: O método GET é APENAS LEITURA.
+            // Montamos a configuração padrão apenas na MEMÓRIA para o Frontend não travar,
+            // mas NÃO usamos o repository.save() para não poluir o banco de dados.
+
             ConfiguracaoPrefeitura configPadrao = new ConfiguracaoPrefeitura();
             configPadrao.setCidade(cidade);
             configPadrao.setPopUpAtivo(false);
@@ -36,14 +40,13 @@ public class ConfiguracaoController {
             configPadrao.setTituloPopUp("Bem-vindo a " + cidade + "!");
             configPadrao.setMensagemPopUp("Mantenha a nossa cidade limpa.");
             configPadrao.setImagemFundoLogin("");
+            configPadrao.setLatitudeCentro(-26.9877);
+            configPadrao.setLongitudeCentro(-53.5350);
+            configPadrao.setRaioAtendimentoKm(25.0);
 
-            // Configurações padrão de GPS para evitar falhas no App
-            configPadrao.setLatitudeCentro(-26.9877); // Default Iporã
-            configPadrao.setLongitudeCentro(-53.5350); // Default Iporã
-            configPadrao.setRaioAtendimentoKm(25.0); // 25km de raio
-
-            return ResponseEntity.ok(repository.save(configPadrao));
+            return ResponseEntity.ok(configPadrao);
         }
+
         return ResponseEntity.ok(configOpt.get());
     }
 
