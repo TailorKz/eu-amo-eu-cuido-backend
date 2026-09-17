@@ -42,6 +42,14 @@ public class CidadaoController {
 
     private final Map<String, Bucket> cacheRateLimit = new ConcurrentHashMap<>();
 
+    private final Map<String, Bucket> cacheRateLimitLogin = new ConcurrentHashMap<>();
+
+    private Bucket criarBucketLogin() {
+        // Limite de 5 tentativas de login a cada 15 minutos por telefone
+        Bandwidth limit = Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(15)));
+        return Bucket.builder().addLimit(limit).build();
+    }
+
     private Bucket criarNovoBucket() {
         // Limite máximo de 3 disparos por hora por telefone
         Bandwidth limit = Bandwidth.classic(3, Refill.greedy(3, Duration.ofHours(1)));
@@ -121,32 +129,35 @@ public class CidadaoController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<CidadaoResponseDTO> login(@RequestBody Cidadao dadosLogin) {
+    public ResponseEntity<?> login(@RequestBody Cidadao dadosLogin) {
+        // 1. TRAVA DE SEGURANÇA (Rate Limit)
+        Bucket bucket = cacheRateLimitLogin.computeIfAbsent(dadosLogin.getTelefone(), k -> criarBucketLogin());
+        if (!bucket.tryConsume(1)) {
+            return ResponseEntity.status(429).body("Muitas tentativas de login fracassadas. Por segurança, aguarde 15 minutos.");
+        }
 
+        // 2. Lógica normal de autenticação
         var cidadaoOpt = repository.findByTelefoneAndCidade(dadosLogin.getTelefone(), dadosLogin.getCidade());
-
         if (cidadaoOpt.isPresent()) {
             Cidadao cidadao = cidadaoOpt.get();
 
             if (cidadao.getBloqueado() != null && cidadao.getBloqueado()) {
-                return ResponseEntity.status(403).body(null);
+                return ResponseEntity.status(403).body("Usuário bloqueado pela administração.");
             }
 
             if (passwordEncoder.matches(dadosLogin.getSenha(), cidadao.getSenha())) {
+                // Se a senha está correta, reseta o bucket para ele não ser punido futuramente
+                cacheRateLimitLogin.remove(dadosLogin.getTelefone());
 
                 // Gera o Token JWT
                 String tokenGerado = tokenService.gerarToken(cidadao);
-
-                // Cria o DTO Seguro
                 CidadaoResponseDTO usuarioSeguro = new CidadaoResponseDTO(cidadao);
-
-                // Coloca o token dentro do DTO para o Front-end guardar
                 usuarioSeguro.setToken(tokenGerado);
 
                 return ResponseEntity.ok(usuarioSeguro);
             }
         }
-        return ResponseEntity.status(401).build();
+        return ResponseEntity.status(401).body("Número de celular ou senha incorretos.");
     }
 
     //  Atualização de Cargo/Setor
