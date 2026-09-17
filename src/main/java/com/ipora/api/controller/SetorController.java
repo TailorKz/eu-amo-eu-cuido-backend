@@ -26,12 +26,21 @@ public class SetorController {
             repository.save(new Setor("Iluminação Pública", "https://...", cidade));
             repository.save(new Setor("Urbanismo", "https://...", cidade));
             repository.save(new Setor("Limpeza Urbana", "https://...", cidade));
-            repository.save(new Setor("Saneamento e água", "https://...", cidade));
+            repository.save(new Setor("Saneamento e Água", "https://...", cidade));
             repository.save(new Setor("Saúde Pública", "https://...", cidade)); // Maior ID (Último)
 
             // Recarrega já com a ordenação cravada
             setores = repository.findByCidadeOrderByIdAsc(cidade);
         }
+
+        // --- CORREÇÃO DINÂMICA PARA O ANDROID (BYPASS DA ATUALIZAÇÃO DA LOJA) ---
+        // Varre a lista antes de entregar ao celular e substitui espaços por %20 nas URLs
+        for (Setor setor : setores) {
+            if (setor.getIcone() != null) {
+                setor.setIcone(setor.getIcone().replace(" ", "%20"));
+            }
+        }
+
         return ResponseEntity.ok(setores);
     }
 
