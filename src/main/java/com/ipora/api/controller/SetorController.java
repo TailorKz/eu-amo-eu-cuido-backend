@@ -5,8 +5,9 @@ import com.ipora.api.repository.SetorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
+import java.net.URL;
 import java.util.List;
 
 @RestController
@@ -38,16 +39,14 @@ public class SetorController {
         for (Setor setor : setores) {
             if (setor.getIcone() != null && setor.getIcone().trim().startsWith("http")) {
                 try {
-                    // 1. Remove espaços ou quebras de linha acidentais no início ou no fim da URL
+                    // 1. Remove espaços ou quebras de linha acidentais nas pontas da URL
                     String urlLimpa = setor.getIcone().trim();
 
-                    // 2. Constrói a URL codificando corretamente acentos e espaços no meio do texto
-                    String urlSegura = UriComponentsBuilder
-                            .fromHttpUrl(urlLimpa)
-                            .build()
-                            .toUriString();
+                    // 2. Conversão nativa do Java (100% à prova de falhas de biblioteca)
+                    URL url = new URL(urlLimpa);
+                    URI uri = new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), url.getQuery(), url.getRef());
 
-                    setor.setIcone(urlSegura);
+                    setor.setIcone(uri.toASCIIString());
                 } catch (Exception e) {
                     // Se a URL for inválida e falhar, devolve pelo menos sem os espaços ocultos nas pontas
                     setor.setIcone(setor.getIcone().trim());
@@ -60,7 +59,6 @@ public class SetorController {
 
     @PostMapping
     public ResponseEntity<Setor> criarSetor(@RequestBody Setor setor) {
-        // O app enviará o objeto setor já com o nome da cidade preenchido
         return ResponseEntity.ok(repository.save(setor));
     }
 
