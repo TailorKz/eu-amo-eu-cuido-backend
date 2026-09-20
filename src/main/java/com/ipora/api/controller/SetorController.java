@@ -5,6 +5,7 @@ import com.ipora.api.repository.SetorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 
@@ -33,11 +34,24 @@ public class SetorController {
             setores = repository.findByCidadeOrderByIdAsc(cidade);
         }
 
-        // --- CORREÇÃO DINÂMICA PARA O ANDROID (BYPASS DA ATUALIZAÇÃO DA LOJA) ---
-        // Varre a lista antes de entregar ao celular e substitui espaços por %20 nas URLs
+        // --- CORREÇÃO DINÂMICA E BLINDADA PARA O ANDROID (BYPASS DA LOJA) ---
         for (Setor setor : setores) {
-            if (setor.getIcone() != null) {
-                setor.setIcone(setor.getIcone().replace(" ", "%20"));
+            if (setor.getIcone() != null && setor.getIcone().trim().startsWith("http")) {
+                try {
+                    // 1. Remove espaços ou quebras de linha acidentais no início ou no fim da URL
+                    String urlLimpa = setor.getIcone().trim();
+
+                    // 2. Constrói a URL codificando corretamente acentos e espaços no meio do texto
+                    String urlSegura = UriComponentsBuilder
+                            .fromHttpUrl(urlLimpa)
+                            .build()
+                            .toUriString();
+
+                    setor.setIcone(urlSegura);
+                } catch (Exception e) {
+                    // Se a URL for inválida e falhar, devolve pelo menos sem os espaços ocultos nas pontas
+                    setor.setIcone(setor.getIcone().trim());
+                }
             }
         }
 
